@@ -1,0 +1,12 @@
+{
+  "name": "YT Downloader Pro",
+  "short_name": "YT Downloader",
+  "description": "A modern YouTube downloader with real-time progress tracking",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#6366f1",
+  "orientation": "portrait-primary",
+  "icons": [],
+  "categories": ["utilities", "productivity"]
+}

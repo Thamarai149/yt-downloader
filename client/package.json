@@ -1,0 +1,134 @@
+{
+  "name": "yt-downloader-client",
+  "version": "2.0.0",
+  "description": "Modern YouTube downloader client with React and multi-platform support",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext ts,tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest --run",
+    "coverage": "vitest --coverage",
+    "analyze": "npm run build && npx vite-bundle-analyzer dist/stats.html",
+    "clean": "rm -rf node_modules package-lock.json dist && npm install",
+    "mobile:init": "npx cap init",
+    "mobile:add-android": "npx cap add android",
+    "mobile:add-ios": "npx cap add ios",
+    "mobile:sync": "npm run build && npx cap sync",
+    "mobile:run-android": "npx cap run android",
+    "mobile:run-ios": "npx cap run ios",
+    "mobile:build-android": "npm run build && npx cap sync && npx cap build android",
+    "mobile:build-ios": "npm run build && npx cap sync && npx cap build ios",
+    "pwa:dev": "vite --host",
+    "pwa:build": "vite build",
+    "electron:dev": "concurrently \"npm run dev\" \"electron .\"",
+    "electron:build": "npm run build && electron-builder",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  },
+  "keywords": [
+    "youtube",
+    "downloader",
+    "react",
+    "typescript",
+    "pwa",
+    "mobile",
+    "electron"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/yt-downloader.git"
+  },
+  "dependencies": {
+    "@capacitor/filesystem": "^6.0.1",
+    "@capacitor/share": "^6.0.2",
+    "@capacitor/splash-screen": "^6.0.2",
+    "@capacitor/status-bar": "^6.0.1",
+    "framer-motion": "^11.11.17",
+    "lucide-react": "^0.460.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "socket.io-client": "^4.8.1",
+    "zustand": "^5.0.1",
+    "react-query": "^3.39.3",
+    "react-hook-form": "^7.53.2",
+    "react-hot-toast": "^2.4.1",
+    "clsx": "^2.1.1"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/ios": "^6.1.2",
+    "@types/node": "^24.7.0",
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.3.3",
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.15.0",
+    "eslint": "^9.15.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-refresh": "^0.4.14",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.1",
+    "vite-plugin-pwa": "^0.21.1",
+    "vite-bundle-analyzer": "^0.18.0",
+    "vitest": "^2.1.5",
+    "@vitest/ui": "^2.1.5",
+    "@testing-library/react": "^16.0.1",
+    "@testing-library/jest-dom": "^6.6.3",
+    "jsdom": "^25.0.1",
+    "workbox-window": "^7.3.0",
+    "concurrently": "^9.1.0",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "capacitor": {
+    "appId": "com.ytdownloader.app",
+    "appName": "YT Downloader",
+    "webDir": "dist",
+    "server": {
+      "androidScheme": "https"
+    }
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "prettier": {
+    "semi": true,
+    "trailingComma": "es5",
+    "singleQuote": true,
+    "printWidth": 80,
+    "tabWidth": 2
+  },
+  "eslintConfig": {
+    "extends": [
+      "@typescript-eslint/recommended",
+      "plugin:react-hooks/recommended"
+    ]
+  }
+}

@@ -1645,36 +1645,6 @@
     width: 14px;
     height: 14px;
   }
-}2, 1);
-  border-radius: 34px;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.toggle-slider:before {
-  position: absolute;
-  content: "";
-  height: 22px;
-  width: 22px;
-  left: 3px;
-  bottom: 3px;
-  background: white;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 50%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.toggle-switch input:checked + .toggle-slider {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
-}
-
-.toggle-switch input:checked + .toggle-slider:before {
-  transform: translateX(28px);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
-}
-
-.toggle-switch:hover .toggle-slider {
-  box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
 }
 
 /* Action Buttons in Settings */
@@ -3856,6 +3826,7 @@ textarea:focus-visible {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1));
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   pointer-events: none;
 }

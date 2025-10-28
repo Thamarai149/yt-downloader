@@ -1,0 +1,39 @@
+{
+  "name": "youtube-downloader-pro",
+  "version": "1.0.0",
+  "description": "A modern, feature-rich YouTube video downloader with beautiful UI",
+  "main": "index.js",
+  "scripts": {
+    "install:all": "cd backend && npm install && cd ../client && npm install",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm start",
+    "dev:frontend": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "cd backend && npm start"
+  },
+  "keywords": [
+    "youtube",
+    "downloader",
+    "video",
+    "audio",
+    "react",
+    "typescript",
+    "nodejs",
+    "express",
+    "socket.io",
+    "yt-dlp"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/youtube-downloader-pro.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/youtube-downloader-pro/issues"
+  },
+  "homepage": "https://github.com/yourusername/youtube-downloader-pro#readme",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

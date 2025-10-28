@@ -165,34 +165,34 @@ export default function ExtraFeatures({ backend, showToast }: ExtraFeaturesProps
             </div>
 
             {/* Feature Tabs */}
-            <div className="flex gap-2 mb-6 overflow-x-auto">
+            <div className="tab-nav-modern mb-6">
                 <button
-                    className={`btn ${activeFeature === 'subtitles' ? 'btn-primary' : 'btn-secondary'}`}
+                    className={`tab-button-modern ${activeFeature === 'subtitles' ? 'active' : ''}`}
                     onClick={() => setActiveFeature('subtitles')}
                 >
                     <FileText className="w-4 h-4" />
-                    Subtitles
+                    <span>Subtitles</span>
                 </button>
                 <button
-                    className={`btn ${activeFeature === 'thumbnail' ? 'btn-primary' : 'btn-secondary'}`}
+                    className={`tab-button-modern ${activeFeature === 'thumbnail' ? 'active' : ''}`}
                     onClick={() => setActiveFeature('thumbnail')}
                 >
                     <Image className="w-4 h-4" />
-                    Thumbnail
+                    <span>Thumbnail</span>
                 </button>
                 <button
-                    className={`btn ${activeFeature === 'channel' ? 'btn-primary' : 'btn-secondary'}`}
+                    className={`tab-button-modern ${activeFeature === 'channel' ? 'active' : ''}`}
                     onClick={() => setActiveFeature('channel')}
                 >
                     <Users className="w-4 h-4" />
-                    Channel
+                    <span>Channel</span>
                 </button>
                 <button
-                    className={`btn ${activeFeature === 'bulk' ? 'btn-primary' : 'btn-secondary'}`}
+                    className={`tab-button-modern ${activeFeature === 'bulk' ? 'active' : ''}`}
                     onClick={() => setActiveFeature('bulk')}
                 >
                     <Upload className="w-4 h-4" />
-                    Bulk Import
+                    <span>Bulk Import</span>
                 </button>
             </div>
 
@@ -216,16 +216,23 @@ export default function ExtraFeatures({ backend, showToast }: ExtraFeaturesProps
 
                     <div>
                         <label className="block text-sm font-medium mb-2">Select Languages</label>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                             {availableLanguages.map(lang => (
-                                <label key={lang.code} className="flex items-center gap-2 p-2 border rounded cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
+                                <label 
+                                    key={lang.code} 
+                                    className={`flex items-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                                        selectedLanguages.includes(lang.code)
+                                            ? 'border-primary bg-primary/10 shadow-md'
+                                            : 'border-gray-200 dark:border-gray-700 hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                    }`}
+                                >
                                     <input
                                         type="checkbox"
                                         checked={selectedLanguages.includes(lang.code)}
                                         onChange={() => toggleLanguage(lang.code)}
                                         className="checkbox"
                                     />
-                                    <span className="text-sm">{lang.name}</span>
+                                    <span className="text-sm font-medium">{lang.name}</span>
                                 </label>
                             ))}
                         </div>

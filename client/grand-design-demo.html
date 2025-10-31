@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grand Design System Demo</title>
+  <link rel="stylesheet" href="src/grand-design.css">
+  <style>
+    body { margin: 0; padding: 0; }
+    .demo-section { margin-bottom: 4rem; }
+    .demo-title { 
+      font-size: 1.5rem; 
+      font-weight: 700; 
+      margin-bottom: 1.5rem;
+      color: var(--text-primary);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div class="container">
+      
+      <!-- Header -->
+      <div class="grand-header">
+        <div class="grand-logo">
+          <span class="grand-logo-icon">🎨</span>
+          Grand Design System
+        </div>
+        <button class="grand-btn grand-btn-glass" onclick="toggleTheme()">
+          🌓 Toggle Theme
+        </button>
+      </div>
+
+      <!-- Buttons Demo -->
+      <div class="demo-section">
+        <h2 class="demo-title">Buttons</h2>
+        <div class="grand-flex grand-gap-4" style="flex-wrap: wrap;">
+          <button class="grand-btn grand-btn-primary">Primary Button</button>
+          <button class="grand-btn grand-btn-secondary">Secondary Button</button>
+          <button class="grand-btn grand-btn-accent">Accent Button</button>
+          <button class="grand-btn grand-btn-glass">Glass Button</button>
+        </div>
+      </div>
+
+      <!-- Cards Demo -->
+      <div class="demo-section">
+        <h2 class="demo-title">Cards</h2>
+        <div class="grand-grid grand-grid-3">
+          <div class="grand-card">
+            <h3>Glass Card</h3>
+            <p>Beautiful glassmorphism effect with backdrop blur</p>
+          </div>
+          <div class="grand-card-gradient">
+            <div class="grand-card-gradient-inner">
+              <h3>Gradient Border</h3>
+              <p>Card with animated gradient border</p>
+            </div>
+          </div>
+          <div class="grand-card grand-hover-lift">
+            <h3>Hover Effect</h3>
+            <p>Lifts up on hover with smooth animation</p>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Stats Demo -->
+      <div class="demo-section">
+        <h2 class="demo-title">Statistics Cards</h2>
+        <div class="grand-stats-grid">
+          <div class="grand-stat-card">
+            <div class="grand-stat-icon">📊</div>
+            <div class="grand-stat-value">1,234</div>
+            <div class="grand-stat-label">Total Downloads</div>
+          </div>
+          <div class="grand-stat-card">
+            <div class="grand-stat-icon">✅</div>
+            <div class="grand-stat-value">98%</div>
+            <div class="grand-stat-label">Success Rate</div>
+          </div>
+          <div class="grand-stat-card">
+            <div class="grand-stat-icon">⚡</div>
+            <div class="grand-stat-value">5</div>
+            <div class="grand-stat-label">Active Downloads</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress Bar Demo -->
+      <div class="demo-section">
+        <h2 class="demo-title">Progress Bars</h2>
+        <div class="grand-card">
+          <div class="grand-progress-container">
+            <div class="grand-progress-header">
+              <span class="grand-progress-percentage">75%</span>
+              <span class="grand-progress-status">Downloading...</span>
+            </div>
+            <div class="grand-progress-bar">
+              <div class="grand-progress-fill" style="width: 75%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Badges Demo -->
+      <div class="demo-section">
+        <h2 class="demo-title">Badges</h2>
+        <div class="grand-flex grand-gap-3" style="flex-wrap: wrap;">
+          <span class="grand-badge grand-badge-primary">Primary</span>
+          <span class="grand-badge grand-badge-success">Success</span>
+          <span class="grand-badge grand-badge-error">Error</span>
+          <span class="grand-badge grand-badge-warning">Warning</span>
+        </div>
+      </div>
+
+      <!-- Input Fields Demo -->
+      <div class="demo-section">
+        <h2 class="demo-title">Input Fields</h2>
+        <div class="grand-card">
+          <div class="grand-input-group">
+            <label class="grand-input-label">Standard Input</label>
+            <input type="text" class="grand-input" placeholder="Enter text here">
+          </div>
+          <div class="grand-input-group grand-input-icon">
+            <label class="grand-input-label">Input with Icon</label>
+            <span class="grand-input-icon-left">🔗</span>
+            <input type="text" class="grand-input" placeholder="Enter URL">
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs Demo -->
+      <div class="demo-section">
+        <h2 class="demo-title">Tab Navigation</h2>
+        <div class="grand-tabs">
+          <button class="grand-tab active">
+            <span class="grand-tab-icon">📥</span>
+            <span class="grand-tab-text">Download</span>
+          </button>
+          <button class="grand-tab">
+            <span class="grand-tab-icon">🔍</span>
+            <span class="grand-tab-text">Search</span>
+          </button>
+          <button class="grand-tab">
+            <span class="grand-tab-icon">📊</span>
+            <span class="grand-tab-text">Analytics</span>
+          </button>
+          <button class="grand-tab">
+            <span class="grand-tab-icon">⚙️</span>
+            <span class="grand-tab-text">Settings</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Toggle & Radio Demo -->
+      <div class="demo-section">
+        <h2 class="demo-title">Toggle & Radio Buttons</h2>
+        <div class="grand-card">
+          <div class="grand-flex-between grand-mb-6">
+            <span>Dark Mode</span>
+            <label class="grand-toggle">
+              <input type="checkbox">
+              <span class="grand-toggle-slider"></span>
+            </label>
+          </div>
+          <div class="grand-radio-group">
+            <label class="grand-radio-item">
+              <input type="radio" name="demo" class="grand-radio-input" checked>
+              <span>Video</span>
+            </label>
+            <label class="grand-radio-item">
+              <input type="radio" name="demo" class="grand-radio-input">
+              <span>Audio</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State Demo -->
+      <div class="demo-section">
+        <h2 class="demo-title">Empty State</h2>
+        <div class="grand-card">
+          <div class="grand-empty-state">
+            <div class="grand-empty-icon">📭</div>
+            <h3 class="grand-empty-title">No Items Found</h3>
+            <p class="grand-empty-description">Start by adding some content to see it here</p>
+            <button class="grand-btn grand-btn-primary">Get Started</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const currentTheme = html.getAttribute('data-theme');
+      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+      html.setAttribute('data-theme', newTheme);
+    }
+
+    // Tab functionality
+    document.querySelectorAll('.grand-tab').forEach(tab => {
+      tab.addEventListener('click', function() {
+        document.querySelectorAll('.grand-tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>

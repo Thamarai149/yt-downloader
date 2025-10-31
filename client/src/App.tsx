@@ -99,12 +99,12 @@ const Button: React.FC<{
     icon,
     className = ''
 }) => {
-        const baseClasses = 'btn';
+        const baseClasses = 'grand-btn';
         const variantClasses = {
-            primary: 'btn-primary',
-            secondary: 'btn-secondary',
-            danger: 'btn-danger',
-            success: 'btn-success'
+            primary: 'grand-btn-primary',
+            secondary: 'grand-btn-glass',
+            danger: 'grand-btn-secondary',
+            success: 'grand-btn-accent'
         };
 
         return (
@@ -142,20 +142,20 @@ const Input: React.FC<{
     className = ''
 }) => {
         return (
-            <div className={className}>
+            <div className={`grand-input-group ${icon ? 'grand-input-icon' : ''} ${className}`}>
                 {label && (
-                    <label className="block text-sm font-medium mb-2">
-                        {icon && <span className="mr-2">{icon}</span>}
+                    <label className="grand-input-label">
                         {label}
                     </label>
                 )}
+                {icon && <span className="grand-input-icon-left">{icon}</span>}
                 <input
                     type={type}
                     value={value}
                     onChange={onChange}
                     placeholder={placeholder}
                     required={required}
-                    className="input-field"
+                    className="grand-input"
                 />
             </div>
         );
@@ -725,11 +725,12 @@ export default function App() {
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex justify-between items-center mb-6"
+                    className="grand-header"
                 >
-                    <h1 className="text-3xl font-bold gradient-text">
-                        <span className="animated-icon">🎥</span> Enhanced YT Downloader
-                    </h1>
+                    <div className="grand-logo">
+                        <span className="grand-logo-icon">🎥</span>
+                        YT Downloader Pro
+                    </div>
                     <Button
                         variant="secondary"
                         onClick={() => setDarkMode(!darkMode)}
@@ -740,63 +741,63 @@ export default function App() {
                 </motion.div>
 
                 {/* Navigation Tabs */}
-                <div className="flex gap-2 mb-6 overflow-x-auto">
-                    <Button
-                        variant={activeTab === 'single' ? 'primary' : 'secondary'}
+                <div className="grand-tabs">
+                    <button
+                        className={`grand-tab ${activeTab === 'single' ? 'active' : ''}`}
                         onClick={() => setActiveTab('single')}
-                        icon={<Download className="w-4 h-4" />}
                     >
-                        Single
-                    </Button>
-                    <Button
-                        variant={activeTab === 'batch' ? 'primary' : 'secondary'}
+                        <Download className="grand-tab-icon" size={18} />
+                        <span className="grand-tab-text">Single</span>
+                    </button>
+                    <button
+                        className={`grand-tab ${activeTab === 'batch' ? 'active' : ''}`}
                         onClick={() => setActiveTab('batch')}
-                        icon={<List className="w-4 h-4" />}
                     >
-                        Batch
-                    </Button>
-                    <Button
-                        variant={activeTab === 'search' ? 'primary' : 'secondary'}
+                        <List className="grand-tab-icon" size={18} />
+                        <span className="grand-tab-text">Batch</span>
+                    </button>
+                    <button
+                        className={`grand-tab ${activeTab === 'search' ? 'active' : ''}`}
                         onClick={() => setActiveTab('search')}
-                        icon={<Search className="w-4 h-4" />}
                     >
-                        Search
-                    </Button>
-                    <Button
-                        variant={activeTab === 'queue' ? 'primary' : 'secondary'}
+                        <Search className="grand-tab-icon" size={18} />
+                        <span className="grand-tab-text">Search</span>
+                    </button>
+                    <button
+                        className={`grand-tab ${activeTab === 'queue' ? 'active' : ''}`}
                         onClick={() => setActiveTab('queue')}
-                        icon={<Play className="w-4 h-4" />}
                     >
-                        Queue {activeDownloads.length > 0 && `(${activeDownloads.length})`}
-                    </Button>
-                    <Button
-                        variant={activeTab === 'history' ? 'primary' : 'secondary'}
+                        <Play className="grand-tab-icon" size={18} />
+                        <span className="grand-tab-text">Queue {activeDownloads.length > 0 && `(${activeDownloads.length})`}</span>
+                    </button>
+                    <button
+                        className={`grand-tab ${activeTab === 'history' ? 'active' : ''}`}
                         onClick={() => setActiveTab('history')}
-                        icon={<History className="w-4 h-4" />}
                     >
-                        History
-                    </Button>
-                    <Button
-                        variant={activeTab === 'playlist' ? 'primary' : 'secondary'}
+                        <History className="grand-tab-icon" size={18} />
+                        <span className="grand-tab-text">History</span>
+                    </button>
+                    <button
+                        className={`grand-tab ${activeTab === 'playlist' ? 'active' : ''}`}
                         onClick={() => setActiveTab('playlist')}
-                        icon={<List className="w-4 h-4" />}
                     >
-                        Playlist
-                    </Button>
-                    <Button
-                        variant={activeTab === 'scheduler' ? 'primary' : 'secondary'}
+                        <List className="grand-tab-icon" size={18} />
+                        <span className="grand-tab-text">Playlist</span>
+                    </button>
+                    <button
+                        className={`grand-tab ${activeTab === 'scheduler' ? 'active' : ''}`}
                         onClick={() => setActiveTab('scheduler')}
-                        icon={<RefreshCw className="w-4 h-4" />}
                     >
-                        Scheduler
-                    </Button>
-                    <Button
-                        variant={activeTab === 'analytics' ? 'primary' : 'secondary'}
+                        <RefreshCw className="grand-tab-icon" size={18} />
+                        <span className="grand-tab-text">Scheduler</span>
+                    </button>
+                    <button
+                        className={`grand-tab ${activeTab === 'analytics' ? 'active' : ''}`}
                         onClick={() => setActiveTab('analytics')}
-                        icon={<History className="w-4 h-4" />}
                     >
-                        Analytics
-                    </Button>
+                        <History className="grand-tab-icon" size={18} />
+                        <span className="grand-tab-text">Analytics</span>
+                    </button>
                     <Button
                         variant={activeTab === 'settings' ? 'primary' : 'secondary'}
                         onClick={() => setActiveTab('settings')}
@@ -816,7 +817,7 @@ export default function App() {
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: 20 }}
-                                    className="main-card single-download-section p-6 fade-in"
+                                    className="grand-card single-download-section p-6 fade-in"
                                 >
                                     <div className="section-header">
                                         <Download className="w-5 h-5" />
@@ -920,7 +921,7 @@ export default function App() {
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: 20 }}
-                                    className="main-card batch-download-section p-6 fade-in"
+                                    className="grand-card batch-download-section p-6 fade-in"
                                 >
                                     <div className="section-header">
                                         <List className="w-5 h-5" />
@@ -1032,7 +1033,7 @@ export default function App() {
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: 20 }}
-                                    className="main-card search-section p-6 fade-in"
+                                    className="grand-card search-section p-6 fade-in"
                                 >
                                     <div className="section-header">
                                         <Search className="w-5 h-5" />
@@ -1107,7 +1108,7 @@ export default function App() {
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: 20 }}
-                                    className="main-card queue-section p-6 fade-in"
+                                    className="grand-card queue-section p-6 fade-in"
                                 >
                                     <div className="section-header">
                                         <Play className="w-5 h-5" />
@@ -1149,7 +1150,7 @@ export default function App() {
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: 20 }}
-                                    className="main-card history-section p-6 fade-in"
+                                    className="grand-card history-section p-6 fade-in"
                                 >
                                     <div className="section-header flex-between">
                                         <div className="flex items-center gap-2">
@@ -1208,7 +1209,7 @@ export default function App() {
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: 20 }}
-                                    className="main-card playlist-section p-6 fade-in"
+                                    className="grand-card playlist-section p-6 fade-in"
                                 >
                                     <div className="section-header">
                                         <List className="w-5 h-5" />
@@ -1302,7 +1303,7 @@ export default function App() {
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: 20 }}
-                                    className="main-card scheduler-section p-6 fade-in"
+                                    className="grand-card scheduler-section p-6 fade-in"
                                 >
                                     <div className="section-header">
                                         <RefreshCw className="w-5 h-5" />
@@ -1399,7 +1400,7 @@ export default function App() {
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: 20 }}
-                                    className="main-card analytics-section p-6 fade-in"
+                                    className="grand-card analytics-section p-6 fade-in"
                                 >
                                     <div className="section-header">
                                         <History className="w-5 h-5" />
@@ -1476,7 +1477,7 @@ export default function App() {
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: 20 }}
-                                    className="main-card settings-section p-6 fade-in"
+                                    className="grand-card settings-section p-6 fade-in"
                                 >
                                     <div className="section-header">
                                         <Settings className="w-5 h-5" />
@@ -1672,7 +1673,7 @@ export default function App() {
                         <motion.div
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
-                            className="main-card sticky top-6 overflow-hidden"
+                            className="grand-card sticky top-6 overflow-hidden"
                             style={{
                                 background: 'linear-gradient(135deg, rgba(255, 0, 0, 0.05) 0%, rgba(6, 95, 212, 0.05) 100%)',
                                 borderLeft: '4px solid var(--yt-red)'
@@ -1798,7 +1799,7 @@ export default function App() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.2 }}
-                            className="main-card mt-4 p-4"
+                            className="grand-card mt-4 p-4"
                         >
                             <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
                                 <History className="w-4 h-4" />
@@ -1840,3 +1841,4 @@ export default function App() {
         </div>
     );
 }
+

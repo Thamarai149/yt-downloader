@@ -13,6 +13,11 @@ import './modern-styles.css';
 
 // Import components
 import ExtraFeatures from './ExtraFeatures';
+import AdvancedFeatures from './AdvancedFeatures';
+import PlaylistDownloader from './PlaylistDownloader';
+import ScheduleDownloader from './ScheduleDownloader';
+import AIFeatures from './AIFeatures';
+import SocialMediaOptimizer from './SocialMediaOptimizer';
 
 // Types
 interface VideoInfo {
@@ -56,7 +61,7 @@ interface SearchResult {
   view_count: number;
 }
 
-type TabType = 'single' | 'batch' | 'search' | 'queue' | 'history' | 'analytics' | 'settings' | 'extras';
+type TabType = 'single' | 'batch' | 'search' | 'queue' | 'history' | 'analytics' | 'settings' | 'extras' | 'advanced' | 'playlist' | 'schedule' | 'ai' | 'social';
 type DownloadType = 'video' | 'audio';
 type QualityType = 'best' | '4k' | '2k' | '1080' | '720' | '480' | '360' | '240';
 
@@ -637,6 +642,41 @@ export default function AppEnhanced() {
           >
             <Sparkles className="w-4 h-4" />
             Extras
+          </button>
+          <button
+            className={`tab-button-modern ${activeTab === 'advanced' ? 'active' : ''}`}
+            onClick={() => setActiveTab('advanced')}
+          >
+            <Zap className="w-4 h-4" />
+            Advanced
+          </button>
+          <button
+            className={`tab-button-modern ${activeTab === 'playlist' ? 'active' : ''}`}
+            onClick={() => setActiveTab('playlist')}
+          >
+            <List className="w-4 h-4" />
+            Playlist
+          </button>
+          <button
+            className={`tab-button-modern ${activeTab === 'schedule' ? 'active' : ''}`}
+            onClick={() => setActiveTab('schedule')}
+          >
+            <Clock className="w-4 h-4" />
+            Schedule
+          </button>
+          <button
+            className={`tab-button-modern ${activeTab === 'ai' ? 'active' : ''}`}
+            onClick={() => setActiveTab('ai')}
+          >
+            <Sparkles className="w-4 h-4" />
+            AI Tools
+          </button>
+          <button
+            className={`tab-button-modern ${activeTab === 'social' ? 'active' : ''}`}
+            onClick={() => setActiveTab('social')}
+          >
+            <Share2 className="w-4 h-4" />
+            Social
           </button>
         </div>
 
@@ -1429,6 +1469,66 @@ export default function AppEnhanced() {
                   exit={{ opacity: 0, x: 20 }}
                 >
                   <ExtraFeatures backend={backend} showToast={showToast} />
+                </motion.div>
+              )}
+
+              {/* Advanced Tools Tab */}
+              {activeTab === 'advanced' && (
+                <motion.div
+                  key="advanced"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                >
+                  <AdvancedFeatures backend={backend} showToast={showToast} />
+                </motion.div>
+              )}
+
+              {/* Playlist Downloader Tab */}
+              {activeTab === 'playlist' && (
+                <motion.div
+                  key="playlist"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                >
+                  <PlaylistDownloader backend={backend} showToast={showToast} />
+                </motion.div>
+              )}
+
+              {/* Schedule Downloader Tab */}
+              {activeTab === 'schedule' && (
+                <motion.div
+                  key="schedule"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                >
+                  <ScheduleDownloader backend={backend} showToast={showToast} />
+                </motion.div>
+              )}
+
+              {/* AI Tools Tab */}
+              {activeTab === 'ai' && (
+                <motion.div
+                  key="ai"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                >
+                  <AIFeatures backend={backend} showToast={showToast} />
+                </motion.div>
+              )}
+
+              {/* Social Media Optimizer Tab */}
+              {activeTab === 'social' && (
+                <motion.div
+                  key="social"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                >
+                  <SocialMediaOptimizer backend={backend} showToast={showToast} />
                 </motion.div>
               )}
             </AnimatePresence>

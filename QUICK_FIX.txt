@@ -1,0 +1,95 @@
+═══════════════════════════════════════════════════════════════
+  🚀 QUICK FIX FOR YOUR RENDER DEPLOYMENT
+═══════════════════════════════════════════════════════════════
+
+PROBLEM: yt-downloader-re1o.onrender.com shows "Not Found"
+REASON: Backend service is missing or not connected
+
+═══════════════════════════════════════════════════════════════
+  SOLUTION (3 Simple Steps - 10 Minutes)
+═══════════════════════════════════════════════════════════════
+
+STEP 1: Push Updated Code
+──────────────────────────
+Open Command Prompt in your project folder:
+
+  git add .
+  git commit -m "Add CORS fix for Render"
+  git push origin main
+
+
+STEP 2: Create Backend on Render
+──────────────────────────────────
+1. Go to: https://dashboard.render.com
+2. Click: "New +" → "Web Service"
+3. Select your GitHub repo
+4. Fill in:
+   
+   Name: yt-downloader-backend
+   Root Directory: backend
+   Build Command: npm install
+   Start Command: npm start
+   
+5. Add Environment Variables:
+   
+   PORT = 10000
+   NODE_ENV = production
+   FRONTEND_URL = https://yt-downloader-re1o.onrender.com
+   
+6. Click "Create Web Service"
+7. WAIT 2-3 minutes
+8. COPY the backend URL (looks like: yt-downloader-backend-xyz.onrender.com)
+
+
+STEP 3: Connect Frontend to Backend
+────────────────────────────────────
+1. Go to your frontend service: yt-downloader-re1o
+2. Click "Environment" (left sidebar)
+3. Add variable:
+   
+   VITE_BACKEND_URL = https://[YOUR-BACKEND-URL].onrender.com
+   
+   (Replace [YOUR-BACKEND-URL] with URL from Step 2)
+   
+4. Click "Save Changes"
+5. Click "Manual Deploy" → "Clear build cache & deploy"
+6. WAIT 3-5 minutes
+
+
+STEP 4: Test!
+─────────────
+Visit: https://yt-downloader-re1o.onrender.com
+
+Should work now! 🎉
+
+═══════════════════════════════════════════════════════════════
+  TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════
+
+Still not working?
+
+1. Check Backend Health:
+   Visit: https://[your-backend-url].onrender.com/api/health
+   Should show: {"status":"ok"}
+
+2. Check Logs:
+   Dashboard → Your Service → "Logs" tab
+   Look for errors in red
+
+3. Common Issues:
+   - Build failed: Check if package.json exists
+   - CORS error: Verify FRONTEND_URL is correct
+   - 404 error: Check "Publish Directory" is set to "dist"
+
+═══════════════════════════════════════════════════════════════
+  NEED HELP?
+═══════════════════════════════════════════════════════════════
+
+Read detailed guides:
+- DEPLOY_CHECKLIST.md (step-by-step)
+- RENDER_FIX.md (troubleshooting)
+- DEPLOYMENT_ONLINE.md (full guide)
+
+Or check your Render dashboard logs and share the error!
+
+═══════════════════════════════════════════════════════════════

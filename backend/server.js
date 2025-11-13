@@ -16,14 +16,38 @@ const __dirname = dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
+
+// Configure CORS for production
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://yt-downloader-re1o.onrender.com',
+    process.env.FRONTEND_URL,
+    process.env.ALLOWED_ORIGINS
+].filter(Boolean);
+
 const io = new Server(server, {
     cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
+        origin: allowedOrigins,
+        methods: ["GET", "POST"],
+        credentials: true
     }
 });
 
-app.use(cors());
+app.use(cors({
+    origin: function(origin, callback) {
+        // Allow requests with no origin (mobile apps, Postman, etc.)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
+
 app.use(express.json());
 
 // Store download history and active downloads
@@ -59,8 +83,25 @@ if (!fs.existsSync(downloadsDir)) {
     console.log(`✅ Created download folder: ${downloadsDir}`);
 }
 
-// Health check
-app.get('/', (req, res) => res.send('Enhanced YT Downloader server running'));
+// Health check endpoints
+app.get('/', (req, res) => {
+    res.json({
+        status: 'ok',
+        message: 'Enhanced YT Downloader Server',
+        version: '2.0.0',
+        endpoints: ['/api/info', '/api/download', '/api/search', '/api/playlist', '/api/history']
+    });
+});
+
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+        activeDownloads: activeDownloads.size,
+        historyCount: downloadHistory.length
+    });
+});
 
 // Get download path
 app.get('/api/download-path', (req, res) => {

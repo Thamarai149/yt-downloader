@@ -123,6 +123,8 @@ export default function AppEnhanced() {
     desktop: ''
   });
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [notifyOnComplete, setNotifyOnComplete] = useState(true);
+  const [notifyOnError, setNotifyOnError] = useState(true);
   const [showFolderInstructions, setShowFolderInstructions] = useState(false);
 
   // Toast functions
@@ -162,6 +164,7 @@ export default function AppEnhanced() {
     socket.on('downloadFailed', (download: DownloadItem) => {
       setActiveDownloads(prev => prev.filter(d => d.id !== download.id));
       showToast(`Download failed: ${download.title}`, 'error');
+      showErrorNotification('Download Failed', `Failed to download: ${download.title}`);
     });
 
     return () => {
@@ -417,6 +420,21 @@ export default function AppEnhanced() {
     requestNotificationPermission();
     loadDownloadPath();
     loadUserPresets();
+    loadElectronSettings();
+    
+    // Set up Electron notification click handler
+    if (isElectron() && window.electron?.notifications) {
+      window.electron.notifications.onClicked((data) => {
+        console.log('Notification clicked:', data);
+        // Window will be automatically restored by the IPC handler
+        // We can add additional logic here if needed, like navigating to a specific tab
+        if (data.type === 'download-complete') {
+          setActiveTab('history');
+        } else if (data.type === 'download-error') {
+          setActiveTab('queue');
+        }
+      });
+    }
   }, []);
 
   // Load current download path from backend
@@ -429,6 +447,47 @@ export default function AppEnhanced() {
       }
     } catch (err) {
       console.error('Failed to load download path:', err);
+    }
+  };
+
+  // Load Electron settings
+  const loadElectronSettings = async () => {
+    if (!isElectron() || !window.electron?.settings) {
+      return;
+    }
+    
+    try {
+      const settings = await window.electron.settings.get();
+      if (settings) {
+        // Apply notification settings
+        if (typeof settings.showDesktopNotifications === 'boolean') {
+          setNotificationsEnabled(settings.showDesktopNotifications);
+        }
+        if (typeof settings.notifyOnComplete === 'boolean') {
+          setNotifyOnComplete(settings.notifyOnComplete);
+        }
+        if (typeof settings.notifyOnError === 'boolean') {
+          setNotifyOnError(settings.notifyOnError);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load Electron settings:', error);
+    }
+  };
+
+  // Save Electron settings
+  const saveElectronSettings = async (updates: any) => {
+    if (!isElectron() || !window.electron?.settings) {
+      return;
+    }
+    
+    try {
+      const result = await window.electron.settings.set(updates);
+      if (!result.success) {
+        console.error('Failed to save Electron settings:', result.error);
+      }
+    } catch (error) {
+      console.error('Failed to save Electron settings:', error);
     }
   };
 
@@ -445,15 +504,41 @@ export default function AppEnhanced() {
     }
   };
 
+  // Check if running in Electron
+  const isElectron = () => {
+    return typeof window !== 'undefined' && window.electron !== undefined;
+  };
+
   // Request notification permission
   const requestNotificationPermission = () => {
+    // Skip for Electron - it handles permissions natively
+    if (isElectron()) {
+      return;
+    }
+    
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
   };
 
   // Show desktop notification
-  const showDesktopNotification = (title: string, body: string) => {
+  const showDesktopNotification = async (title: string, body: string) => {
+    // Use Electron native notifications if available
+    if (isElectron() && window.electron?.notifications) {
+      try {
+        await window.electron.notifications.show({
+          title,
+          body,
+          type: 'download-complete',
+        });
+        return;
+      } catch (error) {
+        console.error('Failed to show Electron notification:', error);
+        // Fall through to browser notification
+      }
+    }
+    
+    // Fallback to browser notifications
     if (notificationsEnabled && 'Notification' in window && Notification.permission === 'granted') {
       new Notification(title, {
         body,
@@ -461,6 +546,26 @@ export default function AppEnhanced() {
         badge: '/favicon.ico'
       });
     }
+  };
+
+  // Show error notification
+  const showErrorNotification = async (title: string, body: string) => {
+    // Use Electron native notifications if available
+    if (isElectron() && window.electron?.notifications) {
+      try {
+        await window.electron.notifications.show({
+          title,
+          body,
+          type: 'download-error',
+        });
+        return;
+      } catch (error) {
+        console.error('Failed to show Electron error notification:', error);
+      }
+    }
+    
+    // Fallback to toast for errors
+    showToast(body, 'error');
   };
 
   // Open file location - Show instructions
@@ -1158,17 +1263,74 @@ export default function AppEnhanced() {
                       <div className="settings-item">
                         <div className="settings-item-info">
                           <label className="settings-label">Desktop Notifications</label>
-                          <p className="settings-description">Show browser notifications when downloads complete</p>
+                          <p className="settings-description">{isElectron() ? 'Show native notifications when downloads complete' : 'Show browser notifications when downloads complete'}</p>
                         </div>
                         <label className="toggle-switch">
                           <input
                             type="checkbox"
                             checked={notificationsEnabled}
-                            onChange={(e) => setNotificationsEnabled(e.target.checked)}
+                            onChange={async (e) => {
+                              const enabled = e.target.checked;
+                              setNotificationsEnabled(enabled);
+                              // Save to Electron settings if available
+                              await saveElectronSettings({
+                                showDesktopNotifications: enabled,
+                              });
+                            }}
                           />
                           <span className="toggle-slider"></span>
                         </label>
                       </div>
+                      
+                      {/* Additional notification settings for Electron */}
+                      {isElectron() && (
+                        <>
+                          <div className="settings-item">
+                            <div className="settings-item-info">
+                              <label className="settings-label">Notify on Download Complete</label>
+                              <p className="settings-description">Show notification when a download finishes successfully</p>
+                            </div>
+                            <label className="toggle-switch">
+                              <input
+                                type="checkbox"
+                                checked={notifyOnComplete}
+                                disabled={!notificationsEnabled}
+                                onChange={async (e) => {
+                                  const enabled = e.target.checked;
+                                  setNotifyOnComplete(enabled);
+                                  await saveElectronSettings({
+                                    notifyOnComplete: enabled,
+                                  });
+                                }}
+                              />
+                              <span className="toggle-slider"></span>
+                            </label>
+                          </div>
+                          
+                          <div className="settings-item">
+                            <div className="settings-item-info">
+                              <label className="settings-label">Notify on Download Error</label>
+                              <p className="settings-description">Show notification when a download fails</p>
+                            </div>
+                            <label className="toggle-switch">
+                              <input
+                                type="checkbox"
+                                checked={notifyOnError}
+                                disabled={!notificationsEnabled}
+                                onChange={async (e) => {
+                                  const enabled = e.target.checked;
+                                  setNotifyOnError(enabled);
+                                  await saveElectronSettings({
+                                    notifyOnError: enabled,
+                                  });
+                                }}
+                              />
+                              <span className="toggle-slider"></span>
+                            </label>
+                          </div>
+                        </>
+                      )}
+                      
                       <div className="settings-item">
                         <div className="settings-item-info">
                           <label className="settings-label">Test Sound</label>

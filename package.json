@@ -2,14 +2,24 @@
   "name": "youtube-downloader-pro",
   "version": "1.0.0",
   "description": "A modern, feature-rich YouTube video downloader with beautiful UI",
-  "main": "index.js",
+  "main": "src/electron/main.js",
   "scripts": {
     "install:all": "cd backend && npm install && cd ../client && npm install",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm start",
     "dev:frontend": "cd client && npm run dev",
     "build": "cd client && npm run build",
-    "start": "cd backend && npm start"
+    "start": "cd backend && npm start",
+    "test": "node src/electron/__tests__/main-process.test.js",
+    "test:electron": "node src/electron/__tests__/main-process.test.js",
+    "electron:dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron:build": "npm run build:all && electron-builder",
+    "build:all": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd client && npm run build",
+    "build:backend": "cd backend && npm install --production",
+    "download:binaries": "node scripts/download-binaries.js",
+    "package:win": "electron-builder --win --x64",
+    "release": "npm run electron:build"
   },
   "keywords": [
     "youtube",
@@ -34,6 +44,9 @@
   },
   "homepage": "https://github.com/yourusername/youtube-downloader-pro#readme",
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "wait-on": "^7.2.0"
   }
 }

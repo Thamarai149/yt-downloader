@@ -54,3 +54,24 @@ coverage/
 
 # Production
 *.tgz
+
+# Electron
+dist-electron/
+out/
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+
+# Binaries
+binaries/*.exe
+binaries/yt-dlp
+binaries/ffmpeg
+!binaries/README.md
+
+# Build resources (optional - uncomment if you want to ignore icons)
+# build-resources/*.ico
+# build-resources/*.icns
+# build-resources/*.png
+# build-resources/*.bmp

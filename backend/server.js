@@ -9,15 +9,22 @@ import http from 'http';
 import { v4 as uuidv4 } from 'uuid';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import PathResolver from './electron-paths.js';
+import BinaryManager from './binary-manager.js';
 
 // ES module equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Initialize binary manager
+const binaryManager = new BinaryManager();
+let binaryStatus = null;
+
 const app = express();
 const server = http.createServer(app);
 
-// Configure CORS for production
+// Configure CORS for production and Electron
+// In Electron, allow all localhost origins with any port
 const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:5173',
@@ -26,9 +33,29 @@ const allowedOrigins = [
     process.env.ALLOWED_ORIGINS
 ].filter(Boolean);
 
+// Function to check if origin is allowed
+function isOriginAllowed(origin) {
+    if (!origin) return true; // Allow requests with no origin
+    if (allowedOrigins.includes(origin)) return true;
+    if (process.env.NODE_ENV === 'development') return true;
+    
+    // In Electron, allow all localhost origins
+    if (PathResolver.isElectron() && origin.startsWith('http://localhost:')) {
+        return true;
+    }
+    
+    return false;
+}
+
 const io = new Server(server, {
     cors: {
-        origin: allowedOrigins,
+        origin: (origin, callback) => {
+            if (isOriginAllowed(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
         methods: ["GET", "POST"],
         credentials: true
     }
@@ -36,10 +63,7 @@ const io = new Server(server, {
 
 app.use(cors({
     origin: function(origin, callback) {
-        // Allow requests with no origin (mobile apps, Postman, etc.)
-        if (!origin) return callback(null, true);
-        
-        if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+        if (isOriginAllowed(origin)) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));
@@ -57,13 +81,23 @@ let activeDownloads = new Map();
 // Get user's home directory dynamically (works for any Windows user)
 import os from 'os';
 const userHomeDir = os.homedir(); // e.g., C:\Users\CurrentUser
-const defaultDownloadsDir = path.join(userHomeDir, 'Downloads', 'YT-Downloads');
+
+// Use PathResolver for Electron-aware path resolution
+const defaultDownloadsDir = PathResolver.getDownloadsPath();
 
 // Default downloads directory - Automatically uses current user's Downloads folder
 let downloadsDir = defaultDownloadsDir;
 
 // Load custom download path from config file if exists
-const configPath = path.join(process.cwd(), 'download-config.json');
+// In Electron, use user data directory for config
+const configDir = PathResolver.isElectron() ? PathResolver.getUserDataPath() : process.cwd();
+const configPath = path.join(configDir, 'download-config.json');
+
+// Ensure config directory exists
+if (!fs.existsSync(configDir)) {
+    fs.mkdirSync(configDir, { recursive: true });
+}
+
 if (fs.existsSync(configPath)) {
     try {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -83,12 +117,23 @@ if (!fs.existsSync(downloadsDir)) {
     console.log(`✅ Created download folder: ${downloadsDir}`);
 }
 
+// Helper function to get youtubedl with custom binary path
+function getYoutubedl() {
+    const ytdlpPath = binaryManager.getYtdlpPath();
+    if (ytdlpPath) {
+        return (url, options) => youtubedl(url, { ...options, youtubeDlPath: ytdlpPath });
+    }
+    return youtubedl;
+}
+
 // Health check endpoints
 app.get('/', (req, res) => {
     res.json({
         status: 'ok',
         message: 'Enhanced YT Downloader Server',
         version: '2.0.0',
+        electron: PathResolver.isElectron(),
+        binaries: binaryStatus,
         endpoints: ['/api/info', '/api/download', '/api/search', '/api/playlist', '/api/history']
     });
 });
@@ -99,7 +144,9 @@ app.get('/api/health', (req, res) => {
         uptime: process.uptime(),
         timestamp: new Date().toISOString(),
         activeDownloads: activeDownloads.size,
-        historyCount: downloadHistory.length
+        historyCount: downloadHistory.length,
+        electron: PathResolver.isElectron(),
+        binaries: binaryStatus
     });
 });
 
@@ -230,7 +277,8 @@ app.get('/api/info', async (req, res) => {
             return res.status(400).json({ error: 'Valid YouTube URL is required' });
         }
 
-        const info = await youtubedl(url, {
+        const yt = getYoutubedl();
+        const info = await yt(url, {
             dumpSingleJson: true,
             noCheckCertificates: true,
             noWarnings: true,
@@ -288,7 +336,8 @@ app.get('/api/playlist', async (req, res) => {
             return res.status(400).json({ error: 'Playlist URL is required' });
         }
 
-        const info = await youtubedl(url, {
+        const yt = getYoutubedl();
+        const info = await yt(url, {
             dumpSingleJson: true,
             flatPlaylist: true,
             noCheckCertificates: true,
@@ -327,7 +376,8 @@ app.get('/api/search', async (req, res) => {
             return res.status(400).json({ error: 'Search query is required' });
         }
 
-        const searchResults = await youtubedl(`ytsearch${limit}:${query}`, {
+        const yt = getYoutubedl();
+        const searchResults = await yt(`ytsearch${limit}:${query}`, {
             dumpSingleJson: true,
             flatPlaylist: true,
             noCheckCertificates: true,
@@ -363,7 +413,8 @@ app.post('/api/download-subtitles', async (req, res) => {
             return res.status(400).json({ error: 'Valid YouTube URL is required' });
         }
 
-        const info = await youtubedl(url, { dumpSingleJson: true });
+        const yt = getYoutubedl();
+        const info = await yt(url, { dumpSingleJson: true });
         const title = sanitize(info.title) || 'subtitles';
         const timestamp = Date.now();
 
@@ -374,7 +425,7 @@ app.post('/api/download-subtitles', async (req, res) => {
                 const filename = `${title}_${lang}_${timestamp}.srt`;
                 const filepath = path.join(downloadsDir, filename);
 
-                await youtubedl(url, {
+                await yt(url, {
                     writeSubtitles: true,
                     writeAutoSub: true,
                     subLang: lang,
@@ -415,7 +466,8 @@ app.post('/api/download-thumbnail', async (req, res) => {
             return res.status(400).json({ error: 'Valid YouTube URL is required' });
         }
 
-        const info = await youtubedl(url, { dumpSingleJson: true });
+        const yt = getYoutubedl();
+        const info = await yt(url, { dumpSingleJson: true });
         const title = sanitize(info.title) || 'thumbnail';
         const thumbnailUrl = info.thumbnail;
 
@@ -451,7 +503,8 @@ app.get('/api/channel', async (req, res) => {
             return res.status(400).json({ error: 'Channel URL is required' });
         }
 
-        const info = await youtubedl(url, {
+        const yt = getYoutubedl();
+        const info = await yt(url, {
             dumpSingleJson: true,
             flatPlaylist: true,
             playlistEnd: parseInt(limit),
@@ -532,10 +585,11 @@ app.post('/api/bulk-import', async (req, res) => {
 
         const downloadIds = [];
 
+        const yt = getYoutubedl();
         for (const url of validUrls) {
             try {
                 const downloadId = uuidv4();
-                const info = await youtubedl(url, { dumpSingleJson: true });
+                const info = await yt(url, { dumpSingleJson: true });
 
                 const downloadInfo = {
                     id: downloadId,
@@ -629,7 +683,8 @@ app.post('/api/download-subtitles', async (req, res) => {
             return res.status(400).json({ error: 'Valid YouTube URL is required' });
         }
 
-        const info = await youtubedl(url, {
+        const yt = getYoutubedl();
+        const info = await yt(url, {
             dumpSingleJson: true,
             noCheckCertificates: true,
             noWarnings: true,
@@ -645,7 +700,7 @@ app.post('/api/download-subtitles', async (req, res) => {
             try {
                 const subtitlePath = path.join(downloadsDir, `${title}_${timestamp}_${lang}.srt`);
                 
-                await youtubedl(url, {
+                await yt(url, {
                     skipDownload: true,
                     writeSub: true,
                     subLang: lang,
@@ -690,7 +745,8 @@ app.post('/api/download-thumbnail', async (req, res) => {
             return res.status(400).json({ error: 'Valid YouTube URL is required' });
         }
 
-        const info = await youtubedl(url, {
+        const yt = getYoutubedl();
+        const info = await yt(url, {
             dumpSingleJson: true,
             noCheckCertificates: true,
             noWarnings: true,
@@ -734,7 +790,8 @@ app.get('/api/channel', async (req, res) => {
             return res.status(400).json({ error: 'Channel URL is required' });
         }
 
-        const info = await youtubedl(url, {
+        const yt = getYoutubedl();
+        const info = await yt(url, {
             dumpSingleJson: true,
             flatPlaylist: true,
             playlistEnd: parseInt(limit),
@@ -818,10 +875,11 @@ app.post('/api/bulk-import', async (req, res) => {
 
         const downloadIds = [];
 
+        const yt = getYoutubedl();
         for (const url of validUrls) {
             try {
                 const downloadId = uuidv4();
-                const info = await youtubedl(url, {
+                const info = await yt(url, {
                     dumpSingleJson: true,
                     noCheckCertificates: true,
                     noWarnings: true,
@@ -915,7 +973,8 @@ app.post('/api/download', async (req, res) => {
         }
 
         // Get video info first
-        const info = await youtubedl(url, {
+        const yt = getYoutubedl();
+        const info = await yt(url, {
             dumpSingleJson: true,
             noCheckCertificates: true,
             noWarnings: true
@@ -996,7 +1055,7 @@ app.post('/api/download', async (req, res) => {
                     }
                 }, 1000);
 
-                await youtubedl(url, formatOption);
+                await yt(url, formatOption);
 
                 clearInterval(progressInterval);
 
@@ -1138,7 +1197,8 @@ app.get('/api/stream', async (req, res) => {
             return res.status(400).json({ error: 'Valid YouTube URL is required' });
         }
 
-        const info = await youtubedl(url, {
+        const yt = getYoutubedl();
+        const info = await yt(url, {
             dumpSingleJson: true,
             noCheckCertificates: true,
             noWarnings: true
@@ -1206,7 +1266,8 @@ app.use('*', (req, res) => {
     res.status(404).json({ error: 'Route not found' });
 });
 
-const PORT = process.env.PORT || 4000;
+// Accept port from environment variable (set by Electron main process)
+const PORT = parseInt(process.env.PORT || process.env.BACKEND_PORT || '4000', 10);
 
 // Function to find available port
 import net from 'net';
@@ -1224,31 +1285,116 @@ function findAvailablePort(startPort) {
     });
 }
 
+// Graceful shutdown handler
+function gracefulShutdown(signal) {
+    console.log(`\n📡 Received ${signal}, starting graceful shutdown...`);
+    
+    // Close server to stop accepting new connections
+    server.close(() => {
+        console.log('✅ HTTP server closed');
+        
+        // Close Socket.IO connections
+        io.close(() => {
+            console.log('✅ WebSocket connections closed');
+            
+            // Cancel active downloads
+            if (activeDownloads.size > 0) {
+                console.log(`⏹️  Cancelling ${activeDownloads.size} active downloads...`);
+                activeDownloads.clear();
+            }
+            
+            console.log('👋 Server shutdown complete');
+            process.exit(0);
+        });
+    });
+    
+    // Force shutdown after 10 seconds
+    setTimeout(() => {
+        console.error('⚠️  Forced shutdown after timeout');
+        process.exit(1);
+    }, 10000);
+}
+
+// Register shutdown handlers
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGHUP', () => gracefulShutdown('SIGHUP'));
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception:', error);
+    gracefulShutdown('uncaughtException');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 // Start server with port fallback
 async function startServer() {
     try {
+        // Startup logging
+        console.log('═══════════════════════════════════════════════════════');
+        console.log('🚀 Starting Enhanced YT Downloader Server');
+        console.log('═══════════════════════════════════════════════════════');
+        console.log(`📅 Started at: ${new Date().toISOString()}`);
+        console.log(`🖥️  Platform: ${process.platform}`);
+        console.log(`📦 Node.js: ${process.version}`);
+        console.log(`⚡ Environment: ${process.env.NODE_ENV || 'production'}`);
+        console.log(`🔌 Electron: ${PathResolver.isElectron() ? 'Yes' : 'No'}`);
+        console.log(`📁 Working Directory: ${process.cwd()}`);
+        console.log('───────────────────────────────────────────────────────');
+        
+        // Initialize binary manager first
+        console.log('🔧 Initializing binaries...');
+        binaryStatus = await binaryManager.initialize();
+        
+        if (!binaryManager.isVerified()) {
+            console.error('⚠️  Warning: Some binaries are missing. Download functionality may be limited.');
+        }
+        console.log('───────────────────────────────────────────────────────');
+
         const availablePort = await findAvailablePort(PORT);
+        
         server.listen(availablePort, () => {
-            console.log(`🚀 Enhanced YT Downloader Server listening on port ${availablePort}`);
+            console.log(`✅ Server listening on port ${availablePort}`);
+            console.log(`🌐 Local: http://localhost:${availablePort}`);
+            
             if (availablePort !== PORT) {
                 console.log(`⚠️  Port ${PORT} was in use, using port ${availablePort} instead`);
-                console.log(`💡 Update your frontend to use: http://localhost:${availablePort}`);
             }
+            
+            // Write port to file for Electron main process to read
+            if (PathResolver.isElectron()) {
+                const portFile = path.join(PathResolver.getUserDataPath(), 'server-port.txt');
+                fs.writeFileSync(portFile, availablePort.toString());
+                console.log(`📝 Port written to: ${portFile}`);
+            }
+            
+            console.log('───────────────────────────────────────────────────────');
             console.log('📋 Available endpoints:');
-            console.log('  GET  /api/info?url=<youtube-url> - Get video info');
-            console.log('  GET  /api/playlist?url=<playlist-url> - Get playlist info');
-            console.log('  GET  /api/search?query=<search-term> - Search videos');
+            console.log('  GET  /api/health - Server health check');
+            console.log('  GET  /api/info - Get video info');
+            console.log('  GET  /api/playlist - Get playlist info');
+            console.log('  GET  /api/search - Search videos');
             console.log('  POST /api/download - Enhanced download with progress');
-            console.log('  GET  /api/download/:downloadId - Download completed file');
-            console.log('  DEL  /api/download/:downloadId - Cancel download');
+            console.log('  GET  /api/download/:id - Download completed file');
+            console.log('  DEL  /api/download/:id - Cancel download');
             console.log('  GET  /api/history - Download history');
-            console.log('  DEL  /api/history - Clear history');
             console.log('  GET  /api/downloads/active - Active downloads');
-            console.log('  GET  /api/stream?url=<youtube-url>&type=audio|video - Stream download');
+            console.log('  GET  /api/stream - Stream download');
+            console.log('───────────────────────────────────────────────────────');
             console.log('🎯 WebSocket enabled for real-time updates');
+            console.log('✅ Server ready to accept connections');
+            console.log('═══════════════════════════════════════════════════════');
         });
     } catch (error) {
-        console.error('❌ Failed to start server:', error.message);
+        console.error('═══════════════════════════════════════════════════════');
+        console.error('❌ Failed to start server');
+        console.error('═══════════════════════════════════════════════════════');
+        console.error('Error:', error.message);
+        console.error('Stack:', error.stack);
+        console.error('═══════════════════════════════════════════════════════');
         process.exit(1);
     }
 }

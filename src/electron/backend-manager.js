@@ -7,6 +7,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const net = require('net');
 const { app } = require('electron');
+const logger = require('./logger');
 
 class BackendServerManager {
   constructor() {
@@ -26,15 +27,15 @@ class BackendServerManager {
    */
   async start() {
     try {
-      console.log('Starting backend server...');
+      logger.info('Starting backend server...');
 
       // Find available port
       this.serverPort = await this.findAvailablePort(4000);
-      console.log(`Using port: ${this.serverPort}`);
+      logger.info(`Using port: ${this.serverPort}`);
 
       // Get backend path
       const backendPath = this.getBackendPath();
-      console.log(`Backend path: ${backendPath}`);
+      logger.info(`Backend path: ${backendPath}`);
 
       // Prepare environment variables
       const env = this.prepareEnvironment();
@@ -51,7 +52,7 @@ class BackendServerManager {
       this.startTime = Date.now();
       this.restartAttempts = 0;
 
-      console.log(`Backend server started successfully at ${this.getUrl()}`);
+      logger.info(`Backend server started successfully at ${this.getUrl()}`);
 
       return {
         port: this.serverPort,
@@ -59,7 +60,7 @@ class BackendServerManager {
         url: this.getUrl(),
       };
     } catch (error) {
-      console.error('Failed to start backend server:', error);
+      logger.error('Failed to start backend server:', error);
       throw error;
     }
   }
@@ -70,7 +71,7 @@ class BackendServerManager {
    */
   async stop() {
     try {
-      console.log('Stopping backend server...');
+      logger.info('Stopping backend server...');
 
       // Stop health monitoring
       if (this.healthCheckInterval) {
@@ -82,7 +83,7 @@ class BackendServerManager {
       if (this.serverProcess) {
         return new Promise((resolve) => {
           this.serverProcess.once('exit', () => {
-            console.log('Backend server stopped');
+            logger.info('Backend server stopped');
             this.serverProcess = null;
             this.serverPort = null;
             this.startTime = null;
@@ -95,16 +96,16 @@ class BackendServerManager {
           // Force kill after 5 seconds if still running
           setTimeout(() => {
             if (this.serverProcess) {
-              console.log('Force killing backend server...');
+              logger.warn('Force killing backend server...');
               this.serverProcess.kill('SIGKILL');
             }
           }, 5000);
         });
       }
 
-      console.log('Backend server already stopped');
+      logger.info('Backend server already stopped');
     } catch (error) {
-      console.error('Error stopping backend server:', error);
+      logger.error('Error stopping backend server:', error);
       throw error;
     }
   }
@@ -115,7 +116,7 @@ class BackendServerManager {
    */
   async restart() {
     try {
-      console.log('Restarting backend server...');
+      logger.info('Restarting backend server...');
       
       if (this.restartAttempts >= this.maxRestartAttempts) {
         throw new Error('Maximum restart attempts reached');
@@ -125,12 +126,14 @@ class BackendServerManager {
       
       await this.stop();
       
-      // Wait a bit before restarting
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Wait with exponential backoff
+      const delay = Math.min(2000 * Math.pow(2, this.restartAttempts - 1), 10000);
+      logger.info(`Waiting ${delay}ms before restart...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
       
       return await this.start();
     } catch (error) {
-      console.error('Failed to restart backend server:', error);
+      logger.error('Failed to restart backend server:', error);
       throw error;
     }
   }
@@ -203,18 +206,40 @@ class BackendServerManager {
    */
   prepareEnvironment() {
     const userDataPath = app.getPath('userData');
-    const downloadsPath = app.getPath('downloads');
+    const downloadsPath = this.downloadPath || path.join(app.getPath('downloads'), 'YT-Downloads');
+    
+    // Get resources path for binaries
+    const resourcesPath = this.isDevelopment 
+      ? process.cwd() 
+      : process.resourcesPath;
 
     return {
       ...process.env,
       PORT: this.serverPort.toString(),
       NODE_ENV: this.isDevelopment ? 'development' : 'production',
       USER_DATA_PATH: userDataPath,
-      DOWNLOADS_PATH: path.join(downloadsPath, 'YT-Downloads'),
+      DOWNLOADS_PATH: downloadsPath,
       ELECTRON_MODE: 'true',
+      IS_ELECTRON: 'true',
+      ELECTRON_APP_PATH: app.getAppPath(),
+      ELECTRON_USER_DATA: userDataPath,
+      ELECTRON_DOWNLOADS_PATH: downloadsPath,
+      // Pass resources path so backend can find binaries
+      ELECTRON_RESOURCES_PATH: resourcesPath,
       // Disable auto-opening browser
       BROWSER: 'none',
     };
+  }
+
+  /**
+   * Update download path
+   * @param {string} newPath - New download path
+   */
+  updateDownloadPath(newPath) {
+    this.downloadPath = newPath;
+    logger.info(`Download path updated to: ${newPath}`);
+    // Note: Backend will need to be restarted to pick up the new path
+    // or we need to implement a way to update it dynamically via API
   }
 
   /**
@@ -233,7 +258,7 @@ class BackendServerManager {
         return reject(new Error(`Backend server script not found: ${serverScript}`));
       }
 
-      console.log(`Starting server process: node ${serverScript}`);
+      logger.info(`Starting server process: node ${serverScript}`);
 
       // Spawn the server process
       this.serverProcess = spawn('node', [serverScript], {
@@ -246,7 +271,7 @@ class BackendServerManager {
       // Handle stdout
       this.serverProcess.stdout.on('data', (data) => {
         const output = data.toString().trim();
-        console.log(`[Backend] ${output}`);
+        logger.info(`[Backend] ${output}`);
         
         // Check if server started successfully
         if (output.includes('listening on port') || output.includes('Server listening')) {
@@ -257,21 +282,21 @@ class BackendServerManager {
       // Handle stderr
       this.serverProcess.stderr.on('data', (data) => {
         const error = data.toString().trim();
-        console.error(`[Backend Error] ${error}`);
+        logger.error(`[Backend Error] ${error}`);
       });
 
       // Handle process exit
       this.serverProcess.on('exit', (code, signal) => {
-        console.log(`Backend server exited with code ${code} and signal ${signal}`);
+        logger.info(`Backend server exited with code ${code} and signal ${signal}`);
         
         if (code !== 0 && code !== null) {
-          console.error('Backend server crashed, attempting restart...');
+          logger.error('Backend server crashed, attempting restart...');
           
           // Attempt automatic restart if not manually stopped
           if (this.restartAttempts < this.maxRestartAttempts) {
             setTimeout(() => {
               this.restart().catch(err => {
-                console.error('Failed to auto-restart backend:', err);
+                logger.error('Failed to auto-restart backend:', err);
               });
             }, 3000);
           }
@@ -280,14 +305,14 @@ class BackendServerManager {
 
       // Handle process errors
       this.serverProcess.on('error', (error) => {
-        console.error('Backend server process error:', error);
+        logger.error('Backend server process error:', error);
         reject(error);
       });
 
       // Resolve after a timeout if we don't see the success message
       setTimeout(() => {
         if (this.serverProcess && !this.serverProcess.killed) {
-          console.log('Server process started (timeout-based confirmation)');
+          logger.info('Server process started (timeout-based confirmation)');
           resolve();
         }
       }, 5000);
@@ -306,11 +331,12 @@ class BackendServerManager {
       try {
         const isHealthy = await this.healthCheck();
         if (isHealthy) {
-          console.log(`Server is ready after ${attempt} attempts`);
+          logger.info(`Server is ready after ${attempt} attempts`);
           return;
         }
       } catch (error) {
         // Server not ready yet
+        logger.debug(`Health check attempt ${attempt} failed`);
       }
 
       if (attempt < maxAttempts) {
@@ -367,13 +393,13 @@ class BackendServerManager {
       const isHealthy = await this.healthCheck();
       
       if (!isHealthy) {
-        console.warn('Backend server health check failed');
+        logger.warn('Backend server health check failed');
         
         // Attempt restart if server is unhealthy
         if (this.restartAttempts < this.maxRestartAttempts) {
-          console.log('Attempting to restart unhealthy server...');
+          logger.info('Attempting to restart unhealthy server...');
           this.restart().catch(err => {
-            console.error('Failed to restart unhealthy server:', err);
+            logger.error('Failed to restart unhealthy server:', err);
           });
         }
       }
@@ -386,6 +412,58 @@ class BackendServerManager {
    */
   isRunning() {
     return this.serverProcess !== null && !this.serverProcess.killed;
+  }
+
+  /**
+   * Check binary status from backend
+   * @returns {Promise<Object|null>} Binary status or null
+   */
+  async checkBinaryStatus() {
+    if (!this.serverPort) {
+      return null;
+    }
+
+    return new Promise((resolve) => {
+      const http = require('http');
+      
+      const options = {
+        hostname: this.serverHost,
+        port: this.serverPort,
+        path: '/api/binaries/status',
+        method: 'GET',
+        timeout: 5000,
+      };
+
+      const req = http.request(options, (res) => {
+        let data = '';
+        
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+        
+        res.on('end', () => {
+          try {
+            const status = JSON.parse(data);
+            resolve(status);
+          } catch (error) {
+            logger.error('Failed to parse binary status:', error);
+            resolve(null);
+          }
+        });
+      });
+
+      req.on('error', (error) => {
+        logger.error('Failed to check binary status:', error);
+        resolve(null);
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        resolve(null);
+      });
+
+      req.end();
+    });
   }
 }
 

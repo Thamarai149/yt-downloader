@@ -114,6 +114,12 @@ contextBridge.exposeInMainWorld('electron', {
     
     restart: (): Promise<{ success: boolean; error?: string }> => 
       ipcRenderer.invoke('backend:restart'),
+    
+    getBinaryStatus: (): Promise<any> => 
+      ipcRenderer.invoke('backend:get-binary-status'),
+    
+    verifyBinaries: (): Promise<any> => 
+      ipcRenderer.invoke('backend:verify-binaries'),
   },
   
   // Settings management
@@ -197,18 +203,63 @@ contextBridge.exposeInMainWorld('electron', {
   
   // Updates
   updates: {
-    check: (): Promise<UpdateInfo | null> => 
-      ipcRenderer.invoke('update:check'),
+    checkForUpdates: (): Promise<{ success: boolean; updateInfo?: any; error?: string }> => 
+      ipcRenderer.invoke('updater:check-for-updates'),
     
-    download: (): Promise<void> => 
-      ipcRenderer.invoke('update:download'),
+    downloadUpdate: (): Promise<{ success: boolean; error?: string }> => 
+      ipcRenderer.invoke('updater:download-update'),
     
-    install: (): void => {
-      ipcRenderer.invoke('update:install');
+    installUpdate: (): Promise<{ success: boolean; error?: string }> => 
+      ipcRenderer.invoke('updater:install-update'),
+    
+    getStatus: (): Promise<any> => 
+      ipcRenderer.invoke('updater:get-status'),
+    
+    setAutoCheck: (enabled: boolean): Promise<{ success: boolean; error?: string }> => 
+      ipcRenderer.invoke('updater:set-auto-check', enabled),
+    
+    setAutoDownload: (enabled: boolean): Promise<{ success: boolean; error?: string }> => 
+      ipcRenderer.invoke('updater:set-auto-download', enabled),
+    
+    getErrorHistory: (): Promise<{ success: boolean; history?: any[]; error?: string }> => 
+      ipcRenderer.invoke('updater:get-error-history'),
+    
+    clearErrorHistory: (): Promise<{ success: boolean; error?: string }> => 
+      ipcRenderer.invoke('updater:clear-error-history'),
+    
+    cancelRetry: (): Promise<{ success: boolean; error?: string }> => 
+      ipcRenderer.invoke('updater:cancel-retry'),
+    
+    onStatus: (callback: (data: any) => void): void => {
+      ipcRenderer.on('updater:status', (_event: IpcRendererEvent, data: any) => callback(data));
     },
     
-    onProgress: (callback: (progress: number) => void): void => {
-      ipcRenderer.on('update:progress', (_event: IpcRendererEvent, progress: number) => callback(progress));
+    onUpdateAvailable: (callback: (data: any) => void): void => {
+      ipcRenderer.on('updater:update-available', (_event: IpcRendererEvent, data: any) => callback(data));
+    },
+    
+    onUpdateDownloaded: (callback: (data: any) => void): void => {
+      ipcRenderer.on('updater:update-downloaded', (_event: IpcRendererEvent, data: any) => callback(data));
+    },
+    
+    onAutoCheckDisabled: (callback: (data: any) => void): void => {
+      ipcRenderer.on('updater:auto-check-disabled', (_event: IpcRendererEvent, data: any) => callback(data));
+    },
+    
+    removeStatusListener: (callback: any): void => {
+      ipcRenderer.removeListener('updater:status', callback);
+    },
+    
+    removeUpdateAvailableListener: (callback: any): void => {
+      ipcRenderer.removeListener('updater:update-available', callback);
+    },
+    
+    removeUpdateDownloadedListener: (callback: any): void => {
+      ipcRenderer.removeListener('updater:update-downloaded', callback);
+    },
+    
+    removeAutoCheckDisabledListener: (callback: any): void => {
+      ipcRenderer.removeListener('updater:auto-check-disabled', callback);
     },
   },
   

@@ -96,6 +96,11 @@ class PathResolver {
      */
     static getResourcesPath() {
         if (this.isElectron()) {
+            // Check if Electron main process provided the resources path
+            if (process.env.ELECTRON_RESOURCES_PATH) {
+                return path.join(process.env.ELECTRON_RESOURCES_PATH, 'binaries');
+            }
+            
             if (this.isDevelopment()) {
                 // In development, binaries are in project root
                 return path.join(process.cwd(), 'binaries');

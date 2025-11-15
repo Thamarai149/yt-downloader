@@ -75,3 +75,16 @@ binaries/ffmpeg
 # build-resources/*.icns
 # build-resources/*.png
 # build-resources/*.bmp
+
+# Code signing certificates (NEVER commit these!)
+*.pfx
+*.p12
+*.cer
+*.crt
+*.pem
+certificate.*
+*-certificate.*
+electron-builder-signing.json
+
+# Sensitive configuration
+.env.signing

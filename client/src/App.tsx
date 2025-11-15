@@ -14,8 +14,12 @@ import {
     Play,
     Music,
     History,
-    Settings
+    Settings as SettingsIcon
 } from 'lucide-react';
+import SettingsComponent from './components/Settings';
+import { useSettings, useMenuEvents } from './hooks/useElectron';
+import electronAdapter from './utils/electron-adapter';
+import { UpdateNotification } from './components/UpdateNotification';
 
 // Types
 interface VideoInfo {
@@ -269,6 +273,38 @@ export default function App() {
     const [selectedPlaylistVideos, setSelectedPlaylistVideos] = useState<string[]>([]);
     const [scheduleDate, setScheduleDate] = useState('');
     const [scheduleTime, setScheduleTime] = useState('');
+
+    // Load settings and apply theme
+    const { settings: userSettings } = useSettings();
+    
+    useEffect(() => {
+        if (userSettings) {
+            // Apply theme from settings
+            const theme = userSettings.theme || 'system';
+            if (theme === 'system') {
+                // Detect system theme
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                setDarkMode(prefersDark);
+            } else {
+                setDarkMode(theme === 'dark');
+            }
+
+            // Apply other settings
+            if (userSettings.defaultQuality) {
+                setQuality(userSettings.defaultQuality as QualityType);
+            }
+            if (userSettings.defaultType) {
+                setType(userSettings.defaultType);
+            }
+        }
+    }, [userSettings]);
+
+    // Listen for menu events (Electron)
+    useMenuEvents(
+        () => setActiveTab('settings'), // onOpenSettings
+        () => setDarkMode(prev => !prev), // onToggleTheme
+        undefined // onShowAbout
+    );
 
     // Socket.IO connection
     useEffect(() => {
@@ -801,7 +837,7 @@ export default function App() {
                     <Button
                         variant={activeTab === 'settings' ? 'primary' : 'secondary'}
                         onClick={() => setActiveTab('settings')}
-                        icon={<Settings className="w-4 h-4" />}
+                        icon={<SettingsIcon className="w-4 h-4" />}
                     >
                         Settings
                     </Button>
@@ -1479,190 +1515,7 @@ export default function App() {
                                     exit={{ opacity: 0, x: 20 }}
                                     className="grand-card settings-section p-6 fade-in"
                                 >
-                                    <div className="section-header">
-                                        <Settings className="w-5 h-5" />
-                                        <h2>Settings & Preferences</h2>
-                                    </div>
-
-                                    <div className="space-y-6">
-                                        {/* Appearance Section */}
-                                        <div className="border-b pb-4">
-                                            <h3 className="text-md font-semibold mb-3">🎨 Appearance</h3>
-                                            <div className="space-y-3">
-                                                <div>
-                                                    <label className="block text-sm font-medium mb-2">Theme Mode</label>
-                                                    <div className="flex gap-2">
-                                                        <Button
-                                                            variant={!darkMode ? 'primary' : 'secondary'}
-                                                            onClick={() => setDarkMode(false)}
-                                                            icon={<Sun className="w-4 h-4" />}
-                                                        >
-                                                            Light
-                                                        </Button>
-                                                        <Button
-                                                            variant={darkMode ? 'primary' : 'secondary'}
-                                                            onClick={() => setDarkMode(true)}
-                                                            icon={<Moon className="w-4 h-4" />}
-                                                        >
-                                                            Dark
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Download Settings */}
-                                        <div className="border-b pb-4">
-                                            <h3 className="text-md font-semibold mb-3">⚙️ Download Settings</h3>
-                                            <div className="space-y-3">
-                                                <div>
-                                                    <label className="block text-sm font-medium mb-2">Default Quality</label>
-                                                    <select
-                                                        value={quality}
-                                                        onChange={(e) => setQuality(e.target.value as QualityType)}
-                                                        className="select-field"
-                                                    >
-                                                        <option value="best">🏆 Best Available</option>
-                                                        <option value="4k">🎬 4K (2160p)</option>
-                                                        <option value="2k">🎥 2K (1440p)</option>
-                                                        <option value="1080">📺 1080p (Full HD)</option>
-                                                        <option value="720">📺 720p (HD)</option>
-                                                        <option value="480">📺 480p</option>
-                                                        <option value="360">📺 360p</option>
-                                                        <option value="240">📺 240p</option>
-                                                    </select>
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-medium mb-2">Default Type</label>
-                                                    <div className="radio-group">
-                                                        <label className="radio-item">
-                                                            <input
-                                                                type="radio"
-                                                                name="defaultType"
-                                                                value="video"
-                                                                checked={type === 'video'}
-                                                                onChange={() => setType('video')}
-                                                                className="radio-input"
-                                                            />
-                                                            <Play className="w-4 h-4" />
-                                                            <span>Video</span>
-                                                        </label>
-                                                        <label className="radio-item">
-                                                            <input
-                                                                type="radio"
-                                                                name="defaultType"
-                                                                value="audio"
-                                                                checked={type === 'audio'}
-                                                                onChange={() => setType('audio')}
-                                                                className="radio-input"
-                                                            />
-                                                            <Music className="w-4 h-4" />
-                                                            <span>Audio</span>
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Connection Info */}
-                                        <div className="border-b pb-4">
-                                            <h3 className="text-md font-semibold mb-3">🔗 Connection</h3>
-                                            <div className="space-y-2">
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-sm font-medium">Backend URL:</span>
-                                                    <span className="text-sm text-gray-600">{backend}</span>
-                                                </div>
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-sm font-medium">Status:</span>
-                                                    <span className="text-sm text-green-600 font-semibold">● Connected</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Statistics */}
-                                        <div className="border-b pb-4">
-                                            <h3 className="text-md font-semibold mb-3">📊 Statistics</h3>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-                                                    <div className="text-2xl font-bold text-blue-600">{activeDownloads.length}</div>
-                                                    <div className="text-sm text-gray-600">Active Downloads</div>
-                                                </div>
-                                                <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
-                                                    <div className="text-2xl font-bold text-green-600">{downloadHistory.length}</div>
-                                                    <div className="text-sm text-gray-600">Total Downloads</div>
-                                                </div>
-                                                <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg">
-                                                    <div className="text-2xl font-bold text-purple-600">{scheduledDownloads.length}</div>
-                                                    <div className="text-sm text-gray-600">Scheduled</div>
-                                                </div>
-                                                <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded-lg">
-                                                    <div className="text-2xl font-bold text-orange-600">{searchResults.length}</div>
-                                                    <div className="text-sm text-gray-600">Search Results</div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Data Management */}
-                                        <div className="border-b pb-4">
-                                            <h3 className="text-md font-semibold mb-3">🗑️ Data Management</h3>
-                                            <div className="space-y-2">
-                                                <Button
-                                                    variant="danger"
-                                                    onClick={clearHistory}
-                                                    icon={<Trash2 className="w-4 h-4" />}
-                                                    className="w-full"
-                                                >
-                                                    Clear Download History
-                                                </Button>
-                                                <Button
-                                                    variant="secondary"
-                                                    onClick={() => {
-                                                        setSearchResults([]);
-                                                        setStatus('Search results cleared');
-                                                    }}
-                                                    icon={<RefreshCw className="w-4 h-4" />}
-                                                    className="w-full"
-                                                >
-                                                    Clear Search Results
-                                                </Button>
-                                            </div>
-                                        </div>
-
-                                        {/* App Info */}
-                                        <div>
-                                            <h3 className="text-md font-semibold mb-3">ℹ️ About</h3>
-                                            <div className="space-y-2 text-sm">
-                                                <div className="flex justify-between">
-                                                    <span className="font-medium">App Name:</span>
-                                                    <span className="text-gray-600">YouTube Downloader</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="font-medium">Version:</span>
-                                                    <span className="text-gray-600">2.0.0</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="font-medium">Design:</span>
-                                                    <span className="text-gray-600">YouTube Style</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="font-medium">Features:</span>
-                                                    <span className="text-gray-600">4K/2K Support</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Quick Actions */}
-                                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                                            <h4 className="font-semibold mb-2">💡 Quick Tips</h4>
-                                            <ul className="text-sm space-y-1 text-gray-700 dark:text-gray-300">
-                                                <li>• Use 4K/2K for highest quality videos</li>
-                                                <li>• Audio mode extracts MP3 from videos</li>
-                                                <li>• Batch download multiple videos at once</li>
-                                                <li>• Schedule downloads for later</li>
-                                                <li>• Search YouTube directly in the app</li>
-                                            </ul>
-                                        </div>
-                                    </div>
+                                    <SettingsComponent />
                                 </motion.div>
                             )}
                         </AnimatePresence>
@@ -1837,6 +1690,9 @@ export default function App() {
                         </motion.div>
                     )}
                 </AnimatePresence>
+
+                {/* Update Notification */}
+                <UpdateNotification />
             </div>
         </div>
     );

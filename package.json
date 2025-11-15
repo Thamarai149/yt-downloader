@@ -13,13 +13,25 @@
     "test": "node src/electron/__tests__/main-process.test.js",
     "test:electron": "node src/electron/__tests__/main-process.test.js",
     "electron:dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"wait-on http://localhost:5173 && electron .\"",
-    "electron:build": "npm run build:all && electron-builder",
-    "build:all": "npm run build:frontend && npm run build:backend",
-    "build:frontend": "cd client && npm run build",
-    "build:backend": "cd backend && npm install --production",
+    "electron:build": "node scripts/build-all.js && electron-builder",
+    "build:all": "node scripts/build-all.js",
+    "build:frontend": "node scripts/build-frontend.js",
+    "build:backend": "node scripts/build-backend.js",
     "download:binaries": "node scripts/download-binaries.js",
-    "package:win": "electron-builder --win --x64",
-    "release": "npm run electron:build"
+    "pre-build": "node scripts/pre-build.js",
+    "test:binaries": "node scripts/test-binary-packaging.js",
+    "test:binary-verification": "node scripts/test-binary-verification.js",
+    "test:packaged-binaries": "node scripts/test-packaged-binaries.js",
+    "package:win": "npm run pre-build && electron-builder --win --x64",
+    "package:mac": "npm run pre-build && electron-builder --mac",
+    "package:linux": "npm run pre-build && electron-builder --linux",
+    "package:all": "npm run pre-build && electron-builder -mwl",
+    "release": "npm run build:all && npm run package:win",
+    "setup:signing": "node scripts/setup-code-signing.js",
+    "verify:signing": "node scripts/verify-code-signing.js",
+    "test:signed": "node scripts/test-signed-executable.js",
+    "validate:config": "node scripts/validate-electron-config.js",
+    "test:uninstaller": "node scripts/test-uninstaller.js"
   },
   "keywords": [
     "youtube",
@@ -48,5 +60,9 @@
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
     "wait-on": "^7.2.0"
+  },
+  "dependencies": {
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.6.2"
   }
 }

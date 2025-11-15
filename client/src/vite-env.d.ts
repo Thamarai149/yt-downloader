@@ -173,6 +173,16 @@ interface ElectronAPI {
      * Restart backend server
      */
     restart: () => Promise<{ success: boolean; error?: string }>;
+    
+    /**
+     * Get binary verification status
+     */
+    getBinaryStatus: () => Promise<any>;
+    
+    /**
+     * Trigger binary re-verification
+     */
+    verifyBinaries: () => Promise<any>;
   };
   
   /**
@@ -325,25 +335,88 @@ interface ElectronAPI {
   updates: {
     /**
      * Check for available updates
-     * @returns Update info if available, null otherwise
      */
-    check: () => Promise<UpdateInfo | null>;
+    checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; error?: string }>;
     
     /**
      * Download available update
      */
-    download: () => Promise<void>;
+    downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
     
     /**
      * Install downloaded update and restart application
      */
-    install: () => void;
+    installUpdate: () => Promise<{ success: boolean; error?: string }>;
     
     /**
-     * Register callback for update download progress
-     * @param callback Function receiving progress percentage (0-100)
+     * Get current update status
      */
-    onProgress: (callback: (progress: number) => void) => void;
+    getStatus: () => Promise<any>;
+    
+    /**
+     * Enable or disable automatic update checks
+     */
+    setAutoCheck: (enabled: boolean) => Promise<{ success: boolean; error?: string }>;
+    
+    /**
+     * Enable or disable automatic update downloads
+     */
+    setAutoDownload: (enabled: boolean) => Promise<{ success: boolean; error?: string }>;
+    
+    /**
+     * Get update error history
+     */
+    getErrorHistory: () => Promise<{ success: boolean; history?: any[]; error?: string }>;
+    
+    /**
+     * Clear update error history
+     */
+    clearErrorHistory: () => Promise<{ success: boolean; error?: string }>;
+    
+    /**
+     * Cancel pending retry attempt
+     */
+    cancelRetry: () => Promise<{ success: boolean; error?: string }>;
+    
+    /**
+     * Register callback for update status changes
+     */
+    onStatus: (callback: (data: any) => void) => void;
+    
+    /**
+     * Register callback for update available event
+     */
+    onUpdateAvailable: (callback: (data: any) => void) => void;
+    
+    /**
+     * Register callback for update downloaded event
+     */
+    onUpdateDownloaded: (callback: (data: any) => void) => void;
+    
+    /**
+     * Register callback for auto-check disabled event
+     */
+    onAutoCheckDisabled: (callback: (data: any) => void) => void;
+    
+    /**
+     * Remove status listener
+     */
+    removeStatusListener: (callback: any) => void;
+    
+    /**
+     * Remove update available listener
+     */
+    removeUpdateAvailableListener: (callback: any) => void;
+    
+    /**
+     * Remove update downloaded listener
+     */
+    removeUpdateDownloadedListener: (callback: any) => void;
+    
+    /**
+     * Remove auto-check disabled listener
+     */
+    removeAutoCheckDisabledListener: (callback: any) => void;
   };
   
   /**

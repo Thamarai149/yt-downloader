@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import youtubedl from 'youtube-dl-exec';
+import { create as createYoutubeDl } from 'youtube-dl-exec';
 import sanitize from 'sanitize-filename';
 import fs from 'fs';
 import path from 'path';
@@ -19,6 +20,7 @@ const __dirname = dirname(__filename);
 // Initialize binary manager
 const binaryManager = new BinaryManager();
 let binaryStatus = null;
+let binariesReady = false;
 
 const app = express();
 const server = http.createServer(app);
@@ -117,12 +119,33 @@ if (!fs.existsSync(downloadsDir)) {
     console.log(`✅ Created download folder: ${downloadsDir}`);
 }
 
-// Helper function to get youtubedl with custom binary path
+// Helper function to get youtubedl with custom binary paths
 function getYoutubedl() {
     const ytdlpPath = binaryManager.getYtdlpPath();
+    const ffmpegPath = binaryManager.getFfmpegPath();
+    
+    // If we have a custom yt-dlp binary, create a custom instance
     if (ytdlpPath) {
-        return (url, options) => youtubedl(url, { ...options, youtubeDlPath: ytdlpPath });
+        const customYtdl = createYoutubeDl(ytdlpPath);
+        
+        // Return wrapper that adds ffmpeg location if available
+        if (ffmpegPath) {
+            return (url, options) => {
+                return customYtdl(url, { ...options, ffmpegLocation: ffmpegPath });
+            };
+        }
+        
+        return customYtdl;
     }
+    
+    // If only ffmpeg path is custom, use default yt-dlp with custom ffmpeg
+    if (ffmpegPath) {
+        return (url, options) => {
+            return youtubedl(url, { ...options, ffmpegLocation: ffmpegPath });
+        };
+    }
+    
+    // Use default binaries
     return youtubedl;
 }
 
@@ -140,13 +163,25 @@ app.get('/', (req, res) => {
 
 app.get('/api/health', (req, res) => {
     res.json({
-        status: 'ok',
+        status: binariesReady ? 'ok' : 'degraded',
         uptime: process.uptime(),
         timestamp: new Date().toISOString(),
         activeDownloads: activeDownloads.size,
         historyCount: downloadHistory.length,
         electron: PathResolver.isElectron(),
-        binaries: binaryStatus
+        binaries: binaryStatus,
+        binariesReady: binariesReady
+    });
+});
+
+// Get binary status
+app.get('/api/binaries/status', (req, res) => {
+    res.json({
+        ready: binariesReady,
+        status: binaryStatus,
+        message: binariesReady 
+            ? 'All binaries are available and verified' 
+            : 'Some binaries are missing or invalid'
     });
 });
 
@@ -269,8 +304,23 @@ function isValidYouTubeUrl(url) {
     return regex.test(url);
 }
 
+// Middleware to check if binaries are ready
+function checkBinariesReady(req, res, next) {
+    if (!binariesReady) {
+        return res.status(503).json({
+            error: 'Service temporarily unavailable',
+            message: 'Required binaries (yt-dlp, ffmpeg) are not available. Please check server logs.',
+            details: {
+                ytdlp: binaryStatus?.ytdlp || { available: false },
+                ffmpeg: binaryStatus?.ffmpeg || { available: false }
+            }
+        });
+    }
+    next();
+}
+
 // Get video info endpoint with available formats
-app.get('/api/info', async (req, res) => {
+app.get('/api/info', checkBinariesReady, async (req, res) => {
     try {
         const { url } = req.query;
         if (!url || !isValidYouTubeUrl(url)) {
@@ -329,7 +379,7 @@ app.get('/api/info', async (req, res) => {
 });
 
 // Playlist info endpoint
-app.get('/api/playlist', async (req, res) => {
+app.get('/api/playlist', checkBinariesReady, async (req, res) => {
     try {
         const { url } = req.query;
         if (!url) {
@@ -369,7 +419,7 @@ app.get('/api/playlist', async (req, res) => {
 });
 
 // Search YouTube videos
-app.get('/api/search', async (req, res) => {
+app.get('/api/search', checkBinariesReady, async (req, res) => {
     try {
         const { query, limit = 10 } = req.query;
         if (!query) {
@@ -406,7 +456,7 @@ app.get('/api/search', async (req, res) => {
 });
 
 // Download subtitles endpoint
-app.post('/api/download-subtitles', async (req, res) => {
+app.post('/api/download-subtitles', checkBinariesReady, async (req, res) => {
     try {
         const { url, languages = ['en'] } = req.body;
         if (!url || !isValidYouTubeUrl(url)) {
@@ -459,7 +509,7 @@ app.post('/api/download-subtitles', async (req, res) => {
 });
 
 // Download thumbnail endpoint
-app.post('/api/download-thumbnail', async (req, res) => {
+app.post('/api/download-thumbnail', checkBinariesReady, async (req, res) => {
     try {
         const { url } = req.body;
         if (!url || !isValidYouTubeUrl(url)) {
@@ -496,7 +546,7 @@ app.post('/api/download-thumbnail', async (req, res) => {
 });
 
 // Get channel videos
-app.get('/api/channel', async (req, res) => {
+app.get('/api/channel', checkBinariesReady, async (req, res) => {
     try {
         const { url, limit = 50 } = req.query;
         if (!url) {
@@ -569,7 +619,7 @@ app.post('/api/retry/:downloadId', async (req, res) => {
 });
 
 // Bulk URL import
-app.post('/api/bulk-import', async (req, res) => {
+app.post('/api/bulk-import', checkBinariesReady, async (req, res) => {
     try {
         const { urls, type = 'video', quality = 'best' } = req.body;
         
@@ -674,8 +724,8 @@ app.delete('/api/presets/:presetId', (req, res) => {
     }
 });
 
-// Download subtitles endpoint
-app.post('/api/download-subtitles', async (req, res) => {
+// Download subtitles endpoint (duplicate - should be removed in cleanup)
+app.post('/api/download-subtitles-v2', checkBinariesReady, async (req, res) => {
     try {
         const { url, languages = ['en'] } = req.body;
 
@@ -736,8 +786,8 @@ app.post('/api/download-subtitles', async (req, res) => {
     }
 });
 
-// Download thumbnail endpoint
-app.post('/api/download-thumbnail', async (req, res) => {
+// Download thumbnail endpoint (duplicate - should be removed in cleanup)
+app.post('/api/download-thumbnail-v2', checkBinariesReady, async (req, res) => {
     try {
         const { url } = req.body;
 
@@ -961,7 +1011,7 @@ app.get('/api/downloads/active', (req, res) => {
 });
 
 // Enhanced download endpoint with progress tracking
-app.post('/api/download', async (req, res) => {
+app.post('/api/download', checkBinariesReady, async (req, res) => {
     let tempFile = null;
 
     try {
@@ -1189,7 +1239,7 @@ app.delete('/api/download/:downloadId', (req, res) => {
 });
 
 // Stream endpoint (alternative method)
-app.get('/api/stream', async (req, res) => {
+app.get('/api/stream', checkBinariesReady, async (req, res) => {
     try {
         const { url, type = 'video' } = req.query;
 
@@ -1348,9 +1398,13 @@ async function startServer() {
         // Initialize binary manager first
         console.log('🔧 Initializing binaries...');
         binaryStatus = await binaryManager.initialize();
+        binariesReady = binaryManager.isVerified();
         
-        if (!binaryManager.isVerified()) {
+        if (!binariesReady) {
             console.error('⚠️  Warning: Some binaries are missing. Download functionality may be limited.');
+            console.error('   Please ensure yt-dlp and ffmpeg are installed or bundled correctly.');
+        } else {
+            console.log('✅ All binaries verified and ready');
         }
         console.log('───────────────────────────────────────────────────────');
 

@@ -6,14 +6,15 @@
 const { ipcMain, dialog, shell, app, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
+const SettingsManager = require('./settings-manager');
 
 class IPCHandler {
   constructor(backendManager, applicationManager = null) {
     this.backendManager = backendManager;
     this.applicationManager = applicationManager;
-    this.userDataPath = app.getPath('userData');
-    this.settingsPath = path.join(this.userDataPath, 'settings.json');
-    this.defaultSettings = this.getDefaultSettings();
+    this.settingsManager = new SettingsManager();
+    this.settingsIntegration = null;
+    this.autoUpdater = null;
   }
 
   /**
@@ -21,6 +22,20 @@ class IPCHandler {
    */
   setApplicationManager(applicationManager) {
     this.applicationManager = applicationManager;
+  }
+
+  /**
+   * Set settings integration (called after initialization)
+   */
+  setSettingsIntegration(settingsIntegration) {
+    this.settingsIntegration = settingsIntegration;
+  }
+
+  /**
+   * Set auto-updater (called after initialization)
+   */
+  setAutoUpdater(autoUpdater) {
+    this.autoUpdater = autoUpdater;
   }
 
   /**
@@ -49,6 +64,9 @@ class IPCHandler {
 
     // Dialog handlers
     this.registerDialogHandlers();
+
+    // Update handlers
+    this.registerUpdateHandlers();
 
     console.log('IPC handlers registered successfully');
   }
@@ -108,6 +126,28 @@ class IPCHandler {
         return { success: false, error: error.message };
       }
     });
+
+    // Get binary status
+    ipcMain.handle('backend:get-binary-status', async () => {
+      try {
+        const status = await this.backendManager.checkBinaryStatus();
+        return status;
+      } catch (error) {
+        console.error('Failed to get binary status:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Trigger binary re-verification
+    ipcMain.handle('backend:verify-binaries', async () => {
+      try {
+        const status = await this.backendManager.checkBinaryStatus();
+        return status;
+      } catch (error) {
+        console.error('Failed to verify binaries:', error);
+        return { success: false, error: error.message };
+      }
+    });
   }
 
   /**
@@ -117,22 +157,30 @@ class IPCHandler {
     // Get settings
     ipcMain.handle('settings:get', async () => {
       try {
-        return await this.loadSettings();
+        return await this.settingsManager.loadSettings();
       } catch (error) {
         console.error('Failed to load settings:', error);
-        return this.defaultSettings;
+        return this.settingsManager.getDefaultSettings();
       }
     });
 
     // Set settings
     ipcMain.handle('settings:set', async (event, settings) => {
       try {
-        const currentSettings = await this.loadSettings();
-        const updatedSettings = { ...currentSettings, ...settings };
-        await this.saveSettings(updatedSettings);
+        // Validate download path if it's being changed
+        if (settings.downloadPath) {
+          const validation = await this.settingsManager.validateDownloadPath(settings.downloadPath);
+          if (!validation.valid) {
+            return { success: false, error: validation.error };
+          }
+        }
+
+        const updatedSettings = await this.settingsManager.updateSettings(settings);
         
-        // Apply settings to application manager
-        this.applySettings(updatedSettings);
+        // Apply settings using settings integration
+        if (this.settingsIntegration) {
+          await this.settingsIntegration.applySettings(updatedSettings);
+        }
         
         return { success: true, settings: updatedSettings };
       } catch (error) {
@@ -144,8 +192,14 @@ class IPCHandler {
     // Reset settings
     ipcMain.handle('settings:reset', async () => {
       try {
-        await this.saveSettings(this.defaultSettings);
-        return { success: true, settings: this.defaultSettings };
+        const defaults = await this.settingsManager.resetSettings();
+        
+        // Apply settings using settings integration
+        if (this.settingsIntegration) {
+          await this.settingsIntegration.applySettings(defaults);
+        }
+        
+        return { success: true, settings: defaults };
       } catch (error) {
         console.error('Failed to reset settings:', error);
         return { success: false, error: error.message };
@@ -481,138 +535,150 @@ class IPCHandler {
   }
 
   /**
-   * Get default settings
-   */
-  getDefaultSettings() {
-    return {
-      // Download preferences
-      downloadPath: path.join(app.getPath('downloads'), 'YT-Downloads'),
-      defaultQuality: 'highest',
-      defaultType: 'video',
-      maxConcurrentDownloads: 3,
-
-      // Application preferences
-      theme: 'system',
-      minimizeToTray: true,
-      startOnBoot: false,
-      closeToTray: true,
-
-      // Update preferences
-      autoCheckUpdates: true,
-      autoDownloadUpdates: false,
-
-      // Notification preferences
-      showDesktopNotifications: true,
-      notifyOnComplete: true,
-      notifyOnError: true,
-
-      // Advanced
-      customYtdlpPath: null,
-      customFfmpegPath: null,
-      proxyUrl: null,
-    };
-  }
-
-  /**
-   * Load settings from file
+   * Load settings (delegated to SettingsManager)
    */
   async loadSettings() {
-    try {
-      const data = await fs.readFile(this.settingsPath, 'utf8');
-      const settings = JSON.parse(data);
-      
-      // Merge with defaults to ensure all keys exist
-      return { ...this.defaultSettings, ...settings };
-    } catch (error) {
-      if (error.code === 'ENOENT') {
-        // Settings file doesn't exist, create it with defaults
-        await this.saveSettings(this.defaultSettings);
-        return this.defaultSettings;
-      }
-      throw error;
-    }
+    return await this.settingsManager.loadSettings();
   }
 
   /**
-   * Save settings to file
+   * Register update handlers
    */
-  async saveSettings(settings) {
-    try {
-      // Ensure user data directory exists
-      await fs.mkdir(this.userDataPath, { recursive: true });
+  registerUpdateHandlers() {
+    // Check for updates
+    ipcMain.handle('updater:check-for-updates', async () => {
+      try {
+        if (!this.autoUpdater) {
+          return { success: false, error: 'Auto-updater not available' };
+        }
 
-      // Validate settings before saving
-      const validatedSettings = this.validateSettings(settings);
-
-      // Write settings to file
-      await fs.writeFile(
-        this.settingsPath,
-        JSON.stringify(validatedSettings, null, 2),
-        'utf8'
-      );
-
-      console.log('Settings saved successfully');
-    } catch (error) {
-      console.error('Failed to save settings:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Validate settings
-   */
-  validateSettings(settings) {
-    const validated = { ...settings };
-
-    // Validate download path
-    if (validated.downloadPath && typeof validated.downloadPath !== 'string') {
-      validated.downloadPath = this.defaultSettings.downloadPath;
-    }
-
-    // Validate quality
-    const validQualities = ['highest', 'high', 'medium', 'low'];
-    if (!validQualities.includes(validated.defaultQuality)) {
-      validated.defaultQuality = this.defaultSettings.defaultQuality;
-    }
-
-    // Validate type
-    const validTypes = ['video', 'audio'];
-    if (!validTypes.includes(validated.defaultType)) {
-      validated.defaultType = this.defaultSettings.defaultType;
-    }
-
-    // Validate concurrent downloads
-    if (typeof validated.maxConcurrentDownloads !== 'number' ||
-        validated.maxConcurrentDownloads < 1 ||
-        validated.maxConcurrentDownloads > 10) {
-      validated.maxConcurrentDownloads = this.defaultSettings.maxConcurrentDownloads;
-    }
-
-    // Validate theme
-    const validThemes = ['light', 'dark', 'system'];
-    if (!validThemes.includes(validated.theme)) {
-      validated.theme = this.defaultSettings.theme;
-    }
-
-    // Validate boolean settings
-    const booleanSettings = [
-      'minimizeToTray',
-      'startOnBoot',
-      'closeToTray',
-      'autoCheckUpdates',
-      'autoDownloadUpdates',
-      'showDesktopNotifications',
-      'notifyOnComplete',
-      'notifyOnError',
-    ];
-
-    booleanSettings.forEach(key => {
-      if (typeof validated[key] !== 'boolean') {
-        validated[key] = this.defaultSettings[key];
+        const updateInfo = await this.autoUpdater.checkForUpdates();
+        return { success: true, updateInfo };
+      } catch (error) {
+        console.error('Failed to check for updates:', error);
+        return { success: false, error: error.message };
       }
     });
 
-    return validated;
+    // Download update
+    ipcMain.handle('updater:download-update', async () => {
+      try {
+        if (!this.autoUpdater) {
+          return { success: false, error: 'Auto-updater not available' };
+        }
+
+        await this.autoUpdater.downloadUpdate();
+        return { success: true };
+      } catch (error) {
+        console.error('Failed to download update:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Install update
+    ipcMain.handle('updater:install-update', async () => {
+      try {
+        if (!this.autoUpdater) {
+          return { success: false, error: 'Auto-updater not available' };
+        }
+
+        this.autoUpdater.installUpdate();
+        return { success: true };
+      } catch (error) {
+        console.error('Failed to install update:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Get update status
+    ipcMain.handle('updater:get-status', () => {
+      if (!this.autoUpdater) {
+        return {
+          checking: false,
+          available: false,
+          downloading: false,
+          progress: 0,
+          error: 'Auto-updater not available',
+        };
+      }
+
+      return this.autoUpdater.getStatus();
+    });
+
+    // Set auto-check enabled
+    ipcMain.handle('updater:set-auto-check', (event, enabled) => {
+      try {
+        if (!this.autoUpdater) {
+          return { success: false, error: 'Auto-updater not available' };
+        }
+
+        this.autoUpdater.setAutoCheck(enabled);
+        return { success: true };
+      } catch (error) {
+        console.error('Failed to set auto-check:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Set auto-download enabled
+    ipcMain.handle('updater:set-auto-download', (event, enabled) => {
+      try {
+        if (!this.autoUpdater) {
+          return { success: false, error: 'Auto-updater not available' };
+        }
+
+        this.autoUpdater.setAutoDownload(enabled);
+        return { success: true };
+      } catch (error) {
+        console.error('Failed to set auto-download:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Get error history
+    ipcMain.handle('updater:get-error-history', () => {
+      try {
+        if (!this.autoUpdater) {
+          return { success: false, error: 'Auto-updater not available' };
+        }
+
+        const history = this.autoUpdater.getErrorHistory();
+        return { success: true, history };
+      } catch (error) {
+        console.error('Failed to get error history:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Clear error history
+    ipcMain.handle('updater:clear-error-history', () => {
+      try {
+        if (!this.autoUpdater) {
+          return { success: false, error: 'Auto-updater not available' };
+        }
+
+        this.autoUpdater.clearErrorHistory();
+        return { success: true };
+      } catch (error) {
+        console.error('Failed to clear error history:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Cancel retry
+    ipcMain.handle('updater:cancel-retry', () => {
+      try {
+        if (!this.autoUpdater) {
+          return { success: false, error: 'Auto-updater not available' };
+        }
+
+        this.autoUpdater.cancelRetry();
+        return { success: true };
+      } catch (error) {
+        console.error('Failed to cancel retry:', error);
+        return { success: false, error: error.message };
+      }
+    });
   }
 
   /**
@@ -627,27 +693,6 @@ class IPCHandler {
     }
   }
 
-  /**
-   * Apply settings to application components
-   */
-  applySettings(settings) {
-    if (!this.applicationManager) {
-      return;
-    }
-
-    // Apply close to tray setting
-    if (typeof settings.closeToTray === 'boolean') {
-      this.applicationManager.setCloseToTray(settings.closeToTray);
-    }
-
-    // Apply minimize to tray setting
-    if (typeof settings.minimizeToTray === 'boolean') {
-      // This can be used for future enhancements
-      // For now, closeToTray handles the main behavior
-    }
-
-    console.log('Settings applied to application manager');
-  }
 }
 
 module.exports = IPCHandler;

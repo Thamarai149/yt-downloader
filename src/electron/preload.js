@@ -66,13 +66,29 @@ electron_1.contextBridge.exposeInMainWorld('electron', {
     },
     // Updates
     updates: {
-        check: () => electron_1.ipcRenderer.invoke('update:check'),
-        download: () => electron_1.ipcRenderer.invoke('update:download'),
-        install: () => {
-            electron_1.ipcRenderer.invoke('update:install');
+        checkForUpdates: () => electron_1.ipcRenderer.invoke('updater:check-for-updates'),
+        downloadUpdate: () => electron_1.ipcRenderer.invoke('updater:download-update'),
+        installUpdate: () => electron_1.ipcRenderer.invoke('updater:install-update'),
+        getStatus: () => electron_1.ipcRenderer.invoke('updater:get-status'),
+        setAutoCheck: (enabled) => electron_1.ipcRenderer.invoke('updater:set-auto-check', enabled),
+        setAutoDownload: (enabled) => electron_1.ipcRenderer.invoke('updater:set-auto-download', enabled),
+        onStatus: (callback) => {
+            electron_1.ipcRenderer.on('updater:status', (_event, data) => callback(data));
         },
-        onProgress: (callback) => {
-            electron_1.ipcRenderer.on('update:progress', (_event, progress) => callback(progress));
+        onUpdateAvailable: (callback) => {
+            electron_1.ipcRenderer.on('updater:update-available', (_event, data) => callback(data));
+        },
+        onUpdateDownloaded: (callback) => {
+            electron_1.ipcRenderer.on('updater:update-downloaded', (_event, data) => callback(data));
+        },
+        removeStatusListener: (callback) => {
+            electron_1.ipcRenderer.removeListener('updater:status', callback);
+        },
+        removeUpdateAvailableListener: (callback) => {
+            electron_1.ipcRenderer.removeListener('updater:update-available', callback);
+        },
+        removeUpdateDownloadedListener: (callback) => {
+            electron_1.ipcRenderer.removeListener('updater:update-downloaded', callback);
         },
     },
     // Menu events

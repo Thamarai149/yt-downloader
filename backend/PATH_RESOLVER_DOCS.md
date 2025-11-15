@@ -1,429 +1,393 @@
-# PathResolver Utility Documentation
+# PathResolver Documentation
 
 ## Overview
 
-The `PathResolver` utility provides a centralized way to detect the Electron environment and resolve file system paths for both development and production builds. It handles platform-specific paths and ensures the application can locate bundled binaries, user data, and other resources correctly.
+The `PathResolver` utility provides intelligent path resolution for the YouTube Downloader backend, supporting both standalone and Electron environments with automatic detection and fallback mechanisms.
 
-## Requirements Coverage
+## Quick Start
 
-This implementation satisfies the following requirements:
+```javascript
+import PathResolver from './electron-paths.js';
 
-- **Requirement 6.1**: Bundle yt-dlp executable within the application package
-- **Requirement 6.2**: Include ffmpeg binaries for video/audio processing
-- **Requirement 6.3**: Use bundled versions from the application directory
+// Check environment
+const isElectron = PathResolver.isElectron();
+const isDev = PathResolver.isDevelopment();
 
-## Features
+// Get paths
+const userDataPath = PathResolver.getUserDataPath();
+const downloadsPath = PathResolver.getDownloadsPath();
+const ytdlpPath = PathResolver.getBinaryPath('yt-dlp');
 
-### Environment Detection
+// Initialize directories
+PathResolver.initializeDirectories();
 
-- **Electron Detection**: Multiple methods to reliably detect if running in Electron
-- **Development Mode**: Distinguishes between development and production builds
-- **Packaged Detection**: Identifies if the app is running from app.asar
-
-### Path Resolution
-
-#### Development vs Production
-
-| Path Type | Development | Production (Electron) |
-|-----------|-------------|----------------------|
-| Resources | `{project}/binaries` | `{app}/resources/binaries` |
-| User Data | `%APPDATA%/yt-downloader` | `%APPDATA%/yt-downloader` |
-| Downloads | `~/Downloads/YT-Downloads` | `~/Downloads/YT-Downloads` |
-| Binaries | `{project}/binaries/{name}.exe` | `{app}/resources/binaries/{name}.exe` |
-
-#### Platform-Specific Paths
-
-**Windows:**
-- User Data: `%APPDATA%\yt-downloader`
-- Downloads: `%USERPROFILE%\Downloads\YT-Downloads`
-
-**macOS:**
-- User Data: `~/Library/Application Support/yt-downloader`
-- Downloads: `~/Downloads/YT-Downloads`
-
-**Linux:**
-- User Data: `~/.config/yt-downloader`
-- Downloads: `~/Downloads/YT-Downloads`
+// Debug paths
+PathResolver.logPaths(true);
+```
 
 ## API Reference
 
-### Static Methods
+### Environment Detection
 
-#### Environment Detection
+#### `isElectron(): boolean`
+Detects if running in Electron environment using multiple detection methods:
+- Checks `process.versions.electron`
+- Checks environment variables (`ELECTRON_RUN_AS_NODE`, `IS_ELECTRON`)
+- Checks process type
+- Checks for `app.asar` in module path
 
-##### `isElectron(): boolean`
-
-Detects if the application is running in Electron environment.
-
-**Detection Methods:**
-1. Checks `process.versions.electron`
-2. Checks environment variables (`ELECTRON_RUN_AS_NODE`, `IS_ELECTRON`)
-3. Checks process type (`renderer`)
-4. Checks if running from `app.asar`
-
-**Returns:** `true` if running in Electron, `false` otherwise
-
-**Example:**
 ```javascript
 if (PathResolver.isElectron()) {
-    console.log('Running in Electron');
+  console.log('Running in Electron');
 }
 ```
 
-##### `isDevelopment(): boolean`
+#### `isDevelopment(): boolean`
+Checks if running in development mode:
+- `NODE_ENV === 'development'`
+- `ELECTRON_DEV === 'true'`
+- Not packaged
 
-Checks if the application is running in development mode.
-
-**Returns:** `true` if in development mode
-
-**Example:**
 ```javascript
 if (PathResolver.isDevelopment()) {
-    console.log('Development mode - using local binaries');
+  console.log('Development mode');
 }
 ```
 
-##### `isPackaged(): boolean`
+#### `isPackaged(): boolean`
+Checks if application is packaged (production build):
+- In Electron: checks for `app.asar` in path
+- Returns false in standalone mode
 
-Checks if the application is packaged (production build).
+```javascript
+if (PathResolver.isPackaged()) {
+  console.log('Production build');
+}
+```
 
-**Returns:** `true` if running from app.asar
+### Path Resolution
 
-#### Path Resolution
+#### `getAppPath(): string`
+Returns the application's root directory:
+- **Electron Dev**: `process.cwd()`
+- **Electron Prod**: `path.dirname(process.execPath)`
+- **Standalone**: `process.cwd()`
 
-##### `getAppPath(): string`
+#### `getResourcesPath(): string`
+Returns the resources directory containing bundled files:
+- **Electron Dev**: `{project}/binaries`
+- **Electron Prod**: `{app}/resources`
+- **Standalone**: `{project}/binaries`
 
-Gets the application's root directory.
+#### `getUserDataPath(): string`
+Returns platform-specific user data directory:
+- **Windows**: `%APPDATA%\yt-downloader`
+- **macOS**: `~/Library/Application Support/yt-downloader`
+- **Linux**: `~/.config/yt-downloader`
 
-**Returns:** Application root path
+Can be overridden with `ELECTRON_USER_DATA` environment variable.
 
-##### `getResourcesPath(): string`
+#### `getDownloadsPath(): string`
+Returns the downloads directory:
+- Default: `{user}/Downloads/YT-Downloads`
+- Can be overridden with `ELECTRON_DOWNLOADS_PATH` environment variable
 
-Gets the resources directory path where bundled files are located.
+#### `getBinaryPath(binaryName: string): string`
+Returns path to bundled binary (yt-dlp or ffmpeg):
+- Adds platform-specific extension (`.exe` on Windows)
+- **Electron Dev**: `{project}/binaries/{binary}.exe`
+- **Electron Prod**: `{app}/resources/binaries/{binary}.exe`
+- **Standalone**: `{project}/binaries/{binary}.exe`
 
-**Development:** `{project}/binaries`
-**Production:** `{app}/resources` or `process.resourcesPath`
-
-**Returns:** Resources directory path
-
-##### `getUserDataPath(): string`
-
-Gets the user data directory for storing application data, settings, and logs.
-
-**Returns:** Platform-specific user data path
-
-##### `getDownloadsPath(): string`
-
-Gets the default downloads directory.
-
-**Returns:** Downloads directory path
-
-##### `getBinaryPath(binaryName: string): string`
-
-Gets the full path to a bundled binary.
-
-**Parameters:**
-- `binaryName` - Name of the binary ('yt-dlp' or 'ffmpeg')
-
-**Returns:** Full path to the binary with platform-specific extension
-
-**Example:**
 ```javascript
 const ytdlpPath = PathResolver.getBinaryPath('yt-dlp');
-// Windows: C:\app\resources\binaries\yt-dlp.exe
-// Linux/Mac: /app/resources/binaries/yt-dlp
+const ffmpegPath = PathResolver.getBinaryPath('ffmpeg');
 ```
 
-##### `getTempPath(): string`
+#### `getLogsPath(): string`
+Returns logs directory: `{userData}/logs`
 
-Gets the system temporary directory.
+#### `getCachePath(): string`
+Returns cache directory: `{userData}/cache`
 
-**Returns:** Temp directory path
+#### `getTempPath(): string`
+Returns system temporary directory: `os.tmpdir()`
 
-##### `getLogsPath(): string`
+### Utility Methods
 
-Gets the logs directory path.
+#### `binaryExists(binaryName: string): boolean`
+Checks if a binary exists at the expected path:
 
-**Returns:** Logs directory path (`{userData}/logs`)
-
-##### `getCachePath(): string`
-
-Gets the cache directory path.
-
-**Returns:** Cache directory path (`{userData}/cache`)
-
-#### Utility Methods
-
-##### `binaryExists(binaryName: string): boolean`
-
-Checks if a binary exists at the expected path.
-
-**Parameters:**
-- `binaryName` - Name of the binary to check
-
-**Returns:** `true` if binary exists
-
-**Example:**
 ```javascript
-if (!PathResolver.binaryExists('yt-dlp')) {
-    console.error('yt-dlp binary not found!');
+if (PathResolver.binaryExists('yt-dlp')) {
+  console.log('yt-dlp is available');
 }
 ```
 
-##### `ensureDirectory(dirPath: string): boolean`
+#### `ensureDirectory(dirPath: string): boolean`
+Creates directory if it doesn't exist (recursive):
 
-Ensures a directory exists, creates it if it doesn't.
-
-**Parameters:**
-- `dirPath` - Directory path to ensure
-
-**Returns:** `true` if directory exists or was created successfully
-
-##### `initializeDirectories(): object`
-
-Creates all necessary application directories.
-
-**Returns:** Object with creation status for each directory
-
-**Example:**
 ```javascript
-const results = PathResolver.initializeDirectories();
-console.log('User Data:', results.userData ? '✓' : '✗');
-console.log('Downloads:', results.downloads ? '✓' : '✗');
-console.log('Logs:', results.logs ? '✓' : '✗');
-console.log('Cache:', results.cache ? '✓' : '✗');
+const success = PathResolver.ensureDirectory('/path/to/dir');
 ```
 
-##### `getAllPaths(): object`
+#### `initializeDirectories(): object`
+Creates all necessary application directories:
 
-Gets all application paths in a single object.
+```javascript
+const results = PathResolver.initializeDirectories();
+// Returns: { userData: true, downloads: true, logs: true, cache: true }
+```
 
-**Returns:** Object containing all paths and environment info
+#### `getAllPaths(): object`
+Returns object with all paths and environment info:
 
-**Example:**
 ```javascript
 const paths = PathResolver.getAllPaths();
 console.log(paths);
 // {
-//   isElectron: true,
-//   isDevelopment: false,
-//   isPackaged: true,
-//   app: 'C:\\Program Files\\YT Downloader',
-//   resources: 'C:\\Program Files\\YT Downloader\\resources',
-//   userData: 'C:\\Users\\User\\AppData\\Roaming\\yt-downloader',
-//   downloads: 'C:\\Users\\User\\Downloads\\YT-Downloads',
-//   temp: 'C:\\Users\\User\\AppData\\Local\\Temp',
-//   logs: 'C:\\Users\\User\\AppData\\Roaming\\yt-downloader\\logs',
-//   cache: 'C:\\Users\\User\\AppData\\Roaming\\yt-downloader\\cache',
-//   ytdlp: 'C:\\Program Files\\YT Downloader\\resources\\binaries\\yt-dlp.exe',
-//   ffmpeg: 'C:\\Program Files\\YT Downloader\\resources\\binaries\\ffmpeg.exe',
-//   ytdlpExists: true,
-//   ffmpegExists: true
+//   isElectron: false,
+//   isDevelopment: true,
+//   isPackaged: false,
+//   app: 'C:/project',
+//   resources: 'C:/project/binaries',
+//   userData: 'C:/Users/User/AppData/Roaming/yt-downloader',
+//   downloads: 'C:/Users/User/Downloads/YT-Downloads',
+//   temp: 'C:/Users/User/AppData/Local/Temp',
+//   logs: 'C:/Users/User/AppData/Roaming/yt-downloader/logs',
+//   cache: 'C:/Users/User/AppData/Roaming/yt-downloader/cache',
+//   ytdlp: 'C:/project/binaries/yt-dlp.exe',
+//   ffmpeg: 'C:/project/binaries/ffmpeg.exe',
+//   ytdlpExists: false,
+//   ffmpegExists: false
 // }
 ```
 
-##### `logPaths(verbose: boolean = false): void`
+#### `logPaths(verbose: boolean): void`
+Logs all paths to console for debugging:
 
-Logs all paths to console for debugging.
-
-**Parameters:**
-- `verbose` - Include additional process information
-
-**Example:**
 ```javascript
-PathResolver.logPaths(true);
+PathResolver.logPaths(true); // Include process info
 ```
+
+## Environment Variables
+
+The PathResolver respects these environment variables:
+
+| Variable | Purpose | Example |
+|----------|---------|---------|
+| `IS_ELECTRON` | Force Electron detection | `'true'` |
+| `ELECTRON_RUN_AS_NODE` | Electron flag | `'1'` |
+| `NODE_ENV` | Environment mode | `'development'` or `'production'` |
+| `ELECTRON_DEV` | Development flag | `'true'` |
+| `ELECTRON_APP_PATH` | Override app path | `'/path/to/app'` |
+| `ELECTRON_USER_DATA` | Override user data path | `'/path/to/userdata'` |
+| `ELECTRON_DOWNLOADS_PATH` | Override downloads path | `'/path/to/downloads'` |
 
 ## Usage Examples
 
-### Basic Usage in Backend Server
+### Example 1: Basic Path Resolution
 
 ```javascript
 import PathResolver from './electron-paths.js';
 
-// Initialize directories on startup
-PathResolver.initializeDirectories();
+// Get user data directory
+const userDataPath = PathResolver.getUserDataPath();
+console.log('User data:', userDataPath);
 
-// Get downloads path
-const downloadsDir = PathResolver.getDownloadsPath();
+// Get downloads directory
+const downloadsPath = PathResolver.getDownloadsPath();
+console.log('Downloads:', downloadsPath);
 
 // Get binary paths
 const ytdlpPath = PathResolver.getBinaryPath('yt-dlp');
 const ffmpegPath = PathResolver.getBinaryPath('ffmpeg');
-
-// Check if binaries exist
-if (!PathResolver.binaryExists('yt-dlp')) {
-    console.error('yt-dlp not found at:', ytdlpPath);
-}
-
-// Use in youtube-dl-exec
-import youtubedl from 'youtube-dl-exec';
-
-const yt = (url, options) => youtubedl(url, {
-    ...options,
-    youtubeDlPath: ytdlpPath
-});
+console.log('yt-dlp:', ytdlpPath);
+console.log('ffmpeg:', ffmpegPath);
 ```
 
-### Environment-Specific Configuration
+### Example 2: Directory Initialization
+
+```javascript
+import PathResolver from './electron-paths.js';
+
+// Initialize all directories
+const results = PathResolver.initializeDirectories();
+
+if (results.userData && results.downloads) {
+  console.log('✅ All directories created');
+} else {
+  console.error('❌ Failed to create some directories');
+}
+```
+
+### Example 3: Conditional Logic
 
 ```javascript
 import PathResolver from './electron-paths.js';
 
 if (PathResolver.isElectron()) {
-    console.log('Running in Electron - using bundled binaries');
-    
-    if (PathResolver.isDevelopment()) {
-        console.log('Development mode - hot reload enabled');
-    } else {
-        console.log('Production mode - using packaged resources');
-    }
+  console.log('Running in Electron');
+  
+  if (PathResolver.isDevelopment()) {
+    console.log('Development mode - using local binaries');
+  } else {
+    console.log('Production mode - using bundled binaries');
+  }
 } else {
-    console.log('Running as standalone Node.js app');
+  console.log('Running standalone');
 }
 ```
 
-### Logging and Debugging
+### Example 4: Config File Storage
+
+```javascript
+import PathResolver from './electron-paths.js';
+import fs from 'fs';
+import path from 'path';
+
+// Store config in user data directory
+const configDir = PathResolver.getUserDataPath();
+const configPath = path.join(configDir, 'config.json');
+
+// Ensure directory exists
+PathResolver.ensureDirectory(configDir);
+
+// Save config
+const config = { theme: 'dark', quality: '1080p' };
+fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+
+// Load config
+const loadedConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+```
+
+### Example 5: Binary Verification
 
 ```javascript
 import PathResolver from './electron-paths.js';
 
-// Log all paths on startup
-console.log('Application initialized');
+// Check if binaries exist
+const ytdlpExists = PathResolver.binaryExists('yt-dlp');
+const ffmpegExists = PathResolver.binaryExists('ffmpeg');
+
+if (ytdlpExists && ffmpegExists) {
+  console.log('✅ All binaries available');
+} else {
+  console.warn('⚠️  Some binaries missing');
+  if (!ytdlpExists) console.warn('  - yt-dlp not found');
+  if (!ffmpegExists) console.warn('  - ffmpeg not found');
+}
+```
+
+## Platform-Specific Behavior
+
+### Windows
+- User data: `%APPDATA%\yt-downloader`
+- Downloads: `%USERPROFILE%\Downloads\YT-Downloads`
+- Binary extension: `.exe`
+
+### macOS
+- User data: `~/Library/Application Support/yt-downloader`
+- Downloads: `~/Downloads/YT-Downloads`
+- Binary extension: none
+
+### Linux
+- User data: `~/.config/yt-downloader`
+- Downloads: `~/Downloads/YT-Downloads`
+- Binary extension: none
+
+## Debugging
+
+### Enable Verbose Logging
+
+```javascript
 PathResolver.logPaths(true);
-
-// Check binary status
-const paths = PathResolver.getAllPaths();
-if (!paths.ytdlpExists || !paths.ffmpegExists) {
-    console.error('Missing binaries!');
-    console.error('yt-dlp:', paths.ytdlpExists ? '✓' : '✗');
-    console.error('ffmpeg:', paths.ffmpegExists ? '✓' : '✗');
-}
 ```
 
-### Integration with Express Server
+Output:
+```
+📁 Application Paths:
+  Environment:
+    Electron: false
+    Development: true
+    Packaged: false
+    Platform: win32
+  Directories:
+    App: C:\project
+    Resources: C:\project\binaries
+    User Data: C:\Users\User\AppData\Roaming\yt-downloader
+    Downloads: C:\Users\User\Downloads\YT-Downloads
+    Logs: C:\Users\User\AppData\Roaming\yt-downloader\logs
+    Cache: C:\Users\User\AppData\Roaming\yt-downloader\cache
+    Temp: C:\Users\User\AppData\Local\Temp
+  Binaries:
+    yt-dlp: C:\project\binaries\yt-dlp.exe ✗
+    ffmpeg: C:\project\binaries\ffmpeg.exe ✗
+  Process Info:
+    CWD: C:\project
+    Exec Path: C:\Program Files\nodejs\node.exe
+    Node Version: v18.0.0
+```
 
+### Common Issues
+
+**Issue: Binaries not found**
 ```javascript
-import express from 'express';
-import PathResolver from './electron-paths.js';
+// Check binary paths
+console.log('yt-dlp path:', PathResolver.getBinaryPath('yt-dlp'));
+console.log('yt-dlp exists:', PathResolver.binaryExists('yt-dlp'));
 
-const app = express();
-
-// Health check endpoint with path info
-app.get('/api/health', (req, res) => {
-    const paths = PathResolver.getAllPaths();
-    res.json({
-        status: 'ok',
-        electron: paths.isElectron,
-        development: paths.isDevelopment,
-        binaries: {
-            ytdlp: paths.ytdlpExists,
-            ffmpeg: paths.ffmpegExists
-        }
-    });
-});
-
-// Get system paths endpoint
-app.get('/api/paths', (req, res) => {
-    res.json(PathResolver.getAllPaths());
-});
+// Check resources path
+console.log('Resources path:', PathResolver.getResourcesPath());
 ```
 
-## Environment Variables
+**Issue: Wrong user data directory**
+```javascript
+// Override with environment variable
+process.env.ELECTRON_USER_DATA = '/custom/path';
+console.log('User data:', PathResolver.getUserDataPath());
+```
 
-The PathResolver respects the following environment variables when set by the Electron main process:
-
-| Variable | Purpose | Example |
-|----------|---------|---------|
-| `IS_ELECTRON` | Force Electron detection | `true` |
-| `ELECTRON_DEV` | Force development mode | `true` |
-| `NODE_ENV` | Node environment | `development` or `production` |
-| `ELECTRON_USER_DATA` | Override user data path | `C:\Users\User\AppData\Roaming\yt-downloader` |
-| `ELECTRON_DOWNLOADS_PATH` | Override downloads path | `C:\Users\User\Downloads\YT-Downloads` |
-| `ELECTRON_APP_PATH` | Override app path | `C:\Program Files\YT Downloader` |
+**Issue: Electron not detected**
+```javascript
+// Force Electron mode
+process.env.IS_ELECTRON = 'true';
+console.log('Is Electron:', PathResolver.isElectron());
+```
 
 ## Testing
 
-Run the test suite to verify PathResolver functionality:
+Run the test script to verify functionality:
 
 ```bash
-node backend/test-path-resolver.js
+node backend/test-electron-compatibility.js
 ```
 
-The test suite covers:
-1. Environment detection
-2. Path resolution
-3. Binary path resolution
-4. Directory initialization
-5. Complete path information
-6. Simulated Electron environment
+## Integration with Electron
 
-## Troubleshooting
-
-### Binary Not Found
-
-**Problem:** `binaryExists()` returns `false`
-
-**Solutions:**
-1. Check if binaries are in the correct location
-2. Verify binary names match exactly ('yt-dlp', 'ffmpeg')
-3. Ensure binaries have correct file extensions (.exe on Windows)
-4. Run `PathResolver.logPaths(true)` to see expected paths
-
-### Wrong Path in Production
-
-**Problem:** Paths point to development locations in production
-
-**Solutions:**
-1. Ensure `process.resourcesPath` is set by Electron main process
-2. Check if `isPackaged()` returns `true`
-3. Verify app is running from app.asar
-4. Set `NODE_ENV=production` environment variable
-
-### Permission Errors
-
-**Problem:** Cannot create directories
-
-**Solutions:**
-1. Check user has write permissions to user data directory
-2. Run app with appropriate permissions
-3. Use `ensureDirectory()` to create directories with error handling
-
-## Best Practices
-
-1. **Initialize Early**: Call `initializeDirectories()` on application startup
-2. **Check Binary Existence**: Always verify binaries exist before use
-3. **Log Paths**: Use `logPaths()` during development for debugging
-4. **Handle Errors**: Check return values from `ensureDirectory()`
-5. **Environment Variables**: Let Electron main process set environment variables
-6. **Platform Awareness**: Use `getBinaryPath()` for platform-specific extensions
-
-## Integration with Electron Main Process
-
-The Electron main process should set environment variables before starting the backend:
+In your Electron main process:
 
 ```javascript
-// In Electron main.ts
-import { app } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import { spawn } from 'child_process';
+import path from 'path';
 
+// Start backend server
 const backendProcess = spawn('node', ['backend/server.js'], {
-    env: {
-        ...process.env,
-        IS_ELECTRON: 'true',
-        NODE_ENV: app.isPackaged ? 'production' : 'development',
-        ELECTRON_USER_DATA: app.getPath('userData'),
-        ELECTRON_DOWNLOADS_PATH: app.getPath('downloads'),
-        ELECTRON_APP_PATH: app.getAppPath()
-    }
+  env: {
+    ...process.env,
+    IS_ELECTRON: 'true',
+    ELECTRON_APP_PATH: app.getAppPath(),
+    ELECTRON_USER_DATA: app.getPath('userData'),
+    ELECTRON_DOWNLOADS_PATH: path.join(app.getPath('downloads'), 'YT-Downloads'),
+    PORT: '4000',
+    NODE_ENV: 'production'
+  }
 });
 ```
 
-## Version History
+## See Also
 
-- **v1.0.0** - Initial implementation with basic path resolution
-- **v2.0.0** - Enhanced with multiple detection methods, directory initialization, and comprehensive logging
-
-## License
-
-MIT
+- [BinaryManager Documentation](./binary-manager.js)
+- [Electron Compatibility Guide](./ELECTRON_COMPATIBILITY.md)
+- [Server Configuration](./server.js)

@@ -1,7 +1,8 @@
 {
   "appId": "com.ytdownloader.app",
   "productName": "YouTube Downloader Pro",
-  "copyright": "Copyright © 2024",
+  "description": "A modern, feature-rich YouTube video downloader with beautiful UI",
+  "copyright": "Copyright © 2024 YouTube Downloader Pro",
   "directories": {
     "output": "dist-electron",
     "buildResources": "build-resources"
@@ -12,16 +13,42 @@
     "!backend/node_modules",
     "!backend/downloads",
     "!backend/package-lock.json",
+    "!backend/test-*.js",
+    "!backend/*.test.js",
+    "!backend/__tests__",
+    "!backend/BINARY_USAGE.md",
+    "!backend/ELECTRON_COMPATIBILITY.md",
+    "!backend/PATH_RESOLVER_DOCS.md",
     "src/electron/**/*",
-    "package.json"
+    "!src/electron/__tests__",
+    "!src/electron/**/*.test.js",
+    "!src/electron/**/*.md",
+    "package.json",
+    "LICENSE"
   ],
   "extraResources": [
     {
       "from": "binaries",
       "to": "binaries",
-      "filter": ["**/*"]
+      "filter": [
+        "**/*",
+        "!README.md",
+        "!*.tmp",
+        "!*.zip",
+        "!*.tar.gz",
+        "!*.tar.xz",
+        "!temp_extract"
+      ]
     }
   ],
+  "extraMetadata": {
+    "main": "src/electron/main.js"
+  },
+  "asar": true,
+  "asarUnpack": [
+    "backend/node_modules/**/*"
+  ],
+  "compression": "maximum",
   "win": {
     "target": [
       {
@@ -29,38 +56,79 @@
         "arch": ["x64"]
       }
     ],
-    "icon": "build-resources/icon.ico",
     "artifactName": "${productName}-Setup-${version}.${ext}",
-    "requestedExecutionLevel": "asInvoker"
+    "requestedExecutionLevel": "asInvoker",
+    "publisherName": "YouTube Downloader Pro",
+    "verifyUpdateCodeSignature": false,
+    "signingHashAlgorithms": ["sha256"],
+    "signDlls": false,
+    "rfc3161TimeStampServer": "http://timestamp.digicert.com",
+    "timeStampServer": "http://timestamp.digicert.com"
   },
   "nsis": {
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
     "allowElevation": true,
-    "createDesktopShortcut": true,
+    "createDesktopShortcut": "always",
     "createStartMenuShortcut": true,
     "shortcutName": "YouTube Downloader Pro",
-    "installerIcon": "build-resources/installer-icon.ico",
-    "uninstallerIcon": "build-resources/uninstaller-icon.ico",
-    "installerHeader": "build-resources/installer-header.bmp",
-    "installerSidebar": "build-resources/installer-sidebar.bmp",
     "license": "LICENSE",
     "perMachine": false,
-    "runAfterFinish": true
+    "runAfterFinish": true,
+    "deleteAppDataOnUninstall": false,
+    "menuCategory": true,
+    "displayLanguageSelector": false,
+    "installerLanguages": ["en_US"],
+    "language": "1033",
+    "warningsAsErrors": false,
+    "include": "build-resources/installer.nsh",
+    "script": null,
+    "installerHeaderIcon": null,
+    "uninstallerIcon": null
   },
-  "publish": {
-    "provider": "github",
-    "owner": "yourusername",
-    "repo": "yt-downloader"
-  },
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "yourusername",
+      "repo": "youtube-downloader-pro",
+      "releaseType": "release",
+      "publishAutoUpdate": true
+    }
+  ],
   "mac": {
     "target": ["dmg"],
     "icon": "build-resources/icon.icns",
-    "category": "public.app-category.utilities"
+    "category": "public.app-category.utilities",
+    "hardenedRuntime": true,
+    "gatekeeperAssess": false,
+    "entitlements": "build-resources/entitlements.mac.plist",
+    "entitlementsInherit": "build-resources/entitlements.mac.plist"
+  },
+  "dmg": {
+    "contents": [
+      {
+        "x": 130,
+        "y": 220
+      },
+      {
+        "x": 410,
+        "y": 220,
+        "type": "link",
+        "path": "/Applications"
+      }
+    ],
+    "window": {
+      "width": 540,
+      "height": 380
+    }
   },
   "linux": {
     "target": ["AppImage", "deb"],
     "icon": "build-resources/icon.png",
-    "category": "Utility"
+    "category": "Utility",
+    "maintainer": "YouTube Downloader Pro <support@ytdownloader.app>",
+    "vendor": "YouTube Downloader Pro",
+    "synopsis": "Modern YouTube video downloader",
+    "description": "A modern, feature-rich YouTube video downloader with beautiful UI and real-time progress tracking"
   }
 }

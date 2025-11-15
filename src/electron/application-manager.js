@@ -6,6 +6,7 @@
 const { app, BrowserWindow, Tray, Menu, nativeImage, globalShortcut } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
+const logger = require('./logger');
 
 class ApplicationManager {
   constructor() {
@@ -42,9 +43,9 @@ class ApplicationManager {
       // Create main window
       this.createMainWindow();
       
-      console.log('Application initialized successfully');
+      logger.info('Application initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize application:', error);
+      logger.error('Failed to initialize application:', error);
       throw error;
     }
   }
@@ -284,9 +285,9 @@ class ApplicationManager {
         this.showWindow();
       });
 
-      console.log('System tray created successfully');
+      logger.info('System tray created successfully');
     } catch (error) {
-      console.error('Failed to create system tray:', error);
+      logger.error('Failed to create system tray:', error);
       // Don't throw error, tray is optional
     }
   }
@@ -507,7 +508,7 @@ class ApplicationManager {
     const menu = Menu.buildFromTemplate(template);
     Menu.setApplicationMenu(menu);
     
-    console.log('Application menu created successfully');
+    logger.info('Application menu created successfully');
   }
 
   /**
@@ -636,39 +637,39 @@ class ApplicationManager {
     try {
       // Ctrl+Q - Quit application
       const quitShortcut = globalShortcut.register('CommandOrControl+Q', () => {
-        console.log('Global shortcut: Quit (Ctrl+Q)');
+        logger.info('Global shortcut: Quit (Ctrl+Q)');
         this.quit();
       });
 
       if (!quitShortcut) {
-        console.warn('Failed to register Ctrl+Q shortcut (may be in use)');
+        logger.warn('Failed to register Ctrl+Q shortcut (may be in use)');
       }
 
       // Ctrl+, - Open settings
       const settingsShortcut = globalShortcut.register('CommandOrControl+,', () => {
-        console.log('Global shortcut: Settings (Ctrl+,)');
+        logger.info('Global shortcut: Settings (Ctrl+,)');
         if (this.mainWindow && this.mainWindow.webContents) {
           this.mainWindow.webContents.send('menu:open-settings');
         }
       });
 
       if (!settingsShortcut) {
-        console.warn('Failed to register Ctrl+, shortcut (may be in use)');
+        logger.warn('Failed to register Ctrl+, shortcut (may be in use)');
       }
 
       // F11 - Toggle fullscreen
       const fullscreenShortcut = globalShortcut.register('F11', () => {
-        console.log('Global shortcut: Toggle Fullscreen (F11)');
+        logger.info('Global shortcut: Toggle Fullscreen (F11)');
         this.toggleFullScreen();
       });
 
       if (!fullscreenShortcut) {
-        console.warn('Failed to register F11 shortcut (may be in use)');
+        logger.warn('Failed to register F11 shortcut (may be in use)');
       }
 
-      console.log('Global keyboard shortcuts registered');
+      logger.info('Global keyboard shortcuts registered');
     } catch (error) {
-      console.error('Failed to register global shortcuts:', error);
+      logger.error('Failed to register global shortcuts:', error);
       // Don't throw error, shortcuts are optional
     }
   }
@@ -679,9 +680,9 @@ class ApplicationManager {
   unregisterGlobalShortcuts() {
     try {
       globalShortcut.unregisterAll();
-      console.log('Global keyboard shortcuts unregistered');
+      logger.info('Global keyboard shortcuts unregistered');
     } catch (error) {
-      console.error('Failed to unregister global shortcuts:', error);
+      logger.error('Failed to unregister global shortcuts:', error);
     }
   }
 

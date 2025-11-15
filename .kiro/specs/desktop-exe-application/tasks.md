@@ -597,18 +597,18 @@
   - _Requirements: All_
   - _Note: Comprehensive user guide created in docs/USER_GUIDE.md_
 
-- [ ] 16. Prepare for release
+- [x] 16. Prepare for release
 
-- [ ] 16.1 Set up release infrastructure
+- [x] 16.1 Set up release infrastructure
   - Update GitHub repository settings for releases
   - Configure electron-builder publish settings in electron-builder.json (already configured)
   - Create release workflow for generating latest.yml metadata
   - Set up auto-update feed URL in publish configuration
   - Test update mechanism with pre-release/beta versions
   - _Requirements: 4.1, 4.2_
-  - _Note: Basic publish config exists; needs GitHub repository setup and testing_
+  - _Note: GitHub Actions workflow created in .github/workflows/release.yml, release scripts added to package.json_
 
-- [ ] 16.2 Create release package
+- [x] 16.2 Create release package
   - Build final installer using npm run release command
   - Sign installer with code signing certificate (if available)
   - Generate SHA256 checksums for installer verification
@@ -617,8 +617,9 @@
   - Upload installer and checksums to GitHub release
   - Test installer download and installation on clean system
   - _Requirements: 1.1, 4.1_
+  - _Note: Scripts created: prepare-release.js, generate-checksums.js; Documentation: CHANGELOG.md, RELEASE_NOTES_v1.0.0.md_
 
-- [ ] 16.3 Announce and distribute
+- [x] 16.3 Announce and distribute
   - Update project website/README with download links
   - Create installation instructions for end users
   - Write announcement post for release (blog, social media)
@@ -626,3 +627,4 @@
   - Create promotional materials (screenshots, feature highlights, demo video)
   - Submit to software directories like Softpedia, FileHippo (optional)
   - _Requirements: All_
+  - _Note: ANNOUNCEMENT_v1.0.0.md created with social media templates, MIGRATION_GUIDE.md created for web users_

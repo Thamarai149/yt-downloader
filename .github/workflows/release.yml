@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          npm install
+          cd backend && npm install
+          cd ../client && npm install
+
+      - name: Download binaries
+        run: npm run download:binaries
+
+      - name: Build application
+        run: npm run build:all
+
+      - name: Package application
+        run: npm run package:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate checksums
+        run: |
+          cd dist-electron
+          certutil -hashfile *.exe SHA256 > checksums.txt
+        shell: cmd
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: YouTube Downloader Pro ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset (Installer)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist-electron/YouTube Downloader Pro-Setup-*.exe
+          asset_name: YouTube-Downloader-Pro-Setup-${{ github.ref_name }}.exe
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Asset (Checksums)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist-electron/checksums.txt
+          asset_name: checksums.txt
+          asset_content_type: text/plain
+
+      - name: Upload Release Asset (latest.yml)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist-electron/latest.yml
+          asset_name: latest.yml
+          asset_content_type: text/yaml

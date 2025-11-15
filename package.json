@@ -27,6 +27,8 @@
     "package:linux": "npm run pre-build && electron-builder --linux",
     "package:all": "npm run pre-build && electron-builder -mwl",
     "release": "npm run build:all && npm run package:win",
+    "release:prepare": "node scripts/prepare-release.js",
+    "release:checksums": "node scripts/generate-checksums.js",
     "setup:signing": "node scripts/setup-code-signing.js",
     "verify:signing": "node scripts/verify-code-signing.js",
     "test:signed": "node scripts/test-signed-executable.js",

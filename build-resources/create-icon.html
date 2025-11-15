@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Icon Generator</title>
+</head>
+<body>
+    <canvas id="canvas" width="512" height="512"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Background - Red gradient
+        const gradient = ctx.createLinearGradient(0, 0, 512, 512);
+        gradient.addColorStop(0, '#FF0000');
+        gradient.addColorStop(1, '#CC0000');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 512, 512);
+        
+        // White play button (YouTube style)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.moveTo(180, 140);
+        ctx.lineTo(180, 372);
+        ctx.lineTo(380, 256);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Download arrow
+        ctx.fillStyle = '#FFFFFF';
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 20;
+        
+        // Arrow shaft
+        ctx.fillRect(236, 320, 40, 100);
+        
+        // Arrow head
+        ctx.beginPath();
+        ctx.moveTo(256, 450);
+        ctx.lineTo(180, 380);
+        ctx.lineTo(220, 380);
+        ctx.lineTo(220, 400);
+        ctx.lineTo(292, 400);
+        ctx.lineTo(292, 380);
+        ctx.lineTo(332, 380);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Convert to PNG and download
+        canvas.toBlob(function(blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'icon.png';
+            a.click();
+        });
+    </script>
+</body>
+</html>

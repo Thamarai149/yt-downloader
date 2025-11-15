@@ -18,6 +18,8 @@
     "build:frontend": "node scripts/build-frontend.js",
     "build:backend": "node scripts/build-backend.js",
     "download:binaries": "node scripts/download-binaries.js",
+    "generate:icon": "node scripts/generate-icon.js",
+    "convert:icon": "node scripts/convert-icon-to-ico.js",
     "pre-build": "node scripts/pre-build.js",
     "test:binaries": "node scripts/test-binary-packaging.js",
     "test:binary-verification": "node scripts/test-binary-verification.js",

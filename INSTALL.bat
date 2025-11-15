@@ -7,7 +7,7 @@ echo.
 echo Installing Backend Dependencies...
 cd backend
 set YOUTUBE_DL_SKIP_PYTHON_CHECK=1
-call npm install
+call npm install --force
 if %errorlevel% neq 0 (
     echo Backend installation failed!
     pause

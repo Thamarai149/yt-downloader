@@ -51,7 +51,8 @@ try {
     stdio: 'inherit',
     env: {
       ...process.env,
-      NODE_ENV: 'production'
+      NODE_ENV: 'production',
+      YOUTUBE_DL_SKIP_PYTHON_CHECK: '1'
     }
   });
 

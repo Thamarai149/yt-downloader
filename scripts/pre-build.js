@@ -114,32 +114,21 @@ checkPath('  electron-builder.json', path.join(ROOT_DIR, 'electron-builder.json'
 
 console.log('');
 
-// Check code signing (optional)
-console.log('Code Signing (Optional):');
+// Check code signing (optional) - silently check without warnings
 signConfig.loadSigningEnv();
 const signing = signConfig.isSigningConfigured();
 
-if (signing.windows) {
-  console.log('  ✅ Windows signing configured');
-} else {
-  console.log('  ⚠️  Windows signing not configured');
-  warnings.push('Code signing not configured - users may see SmartScreen warnings');
-}
-
-if (signing.macos) {
-  console.log('  ✅ macOS signing configured');
-} else {
-  console.log('  ⚠️  macOS signing not configured');
-}
-
-if (!signing.any) {
+// Only show if actually configured
+if (signing.any) {
+  console.log('Code Signing:');
+  if (signing.windows) {
+    console.log('  ✅ Windows signing configured');
+  }
+  if (signing.macos) {
+    console.log('  ✅ macOS signing configured');
+  }
   console.log('');
-  console.log('  💡 To enable code signing:');
-  console.log('     Run: npm run setup:signing');
-  console.log('     See: CODE_SIGNING.md');
 }
-
-console.log('');
 
 // Summary
 console.log('╔════════════════════════════════════════╗');
@@ -155,13 +144,6 @@ if (hasErrors) {
   process.exit(1);
 } else {
   console.log('✅ All required files present');
-  
-  if (warnings.length > 0) {
-    console.log('');
-    console.log('Warnings:');
-    warnings.forEach(w => console.log(`  ⚠️  ${w}`));
-  }
-  
   console.log('');
   console.log('🚀 Ready to build Electron application');
   console.log('');

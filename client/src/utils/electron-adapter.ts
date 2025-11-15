@@ -686,7 +686,8 @@ class ElectronAdapter {
   async checkForUpdates(): Promise<UpdateInfo | null> {
     if (this.isElectron()) {
       try {
-        return await window.electron!.updates.check();
+        const result = await window.electron!.updates.checkForUpdates();
+        return result.updateInfo || null;
       } catch (error) {
         console.error('Failed to check for updates:', error);
         return null;
@@ -701,8 +702,8 @@ class ElectronAdapter {
   async downloadUpdate(): Promise<boolean> {
     if (this.isElectron()) {
       try {
-        await window.electron!.updates.download();
-        return true;
+        const result = await window.electron!.updates.downloadUpdate();
+        return result.success;
       } catch (error) {
         console.error('Failed to download update:', error);
         return false;
@@ -714,10 +715,17 @@ class ElectronAdapter {
   /**
    * Install update
    */
-  installUpdate(): void {
+  async installUpdate(): Promise<boolean> {
     if (this.isElectron()) {
-      window.electron!.updates.install();
+      try {
+        const result = await window.electron!.updates.installUpdate();
+        return result.success;
+      } catch (error) {
+        console.error('Failed to install update:', error);
+        return false;
+      }
     }
+    return false;
   }
 
   /**
@@ -725,7 +733,11 @@ class ElectronAdapter {
    */
   onUpdateProgress(callback: (progress: number) => void): void {
     if (this.isElectron()) {
-      window.electron!.updates.onProgress(callback);
+      window.electron!.updates.onStatus((data: any) => {
+        if (data.progress !== undefined) {
+          callback(data.progress);
+        }
+      });
     }
   }
 

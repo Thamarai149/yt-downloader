@@ -1,7 +1,6 @@
 {
   "appId": "com.ytdownloader.app",
   "productName": "YouTube Downloader Pro",
-  "description": "A modern, feature-rich YouTube video downloader with beautiful UI",
   "copyright": "Copyright © 2024 YouTube Downloader Pro",
   "directories": {
     "output": "dist-electron",
@@ -56,6 +55,7 @@
         "arch": ["x64"]
       }
     ],
+    "icon": "build-resources/icon.ico",
     "artifactName": "${productName}-Setup-${version}.${ext}",
     "requestedExecutionLevel": "asInvoker",
     "publisherName": "YouTube Downloader Pro",
@@ -83,8 +83,9 @@
     "warningsAsErrors": false,
     "include": "build-resources/installer.nsh",
     "script": null,
-    "installerHeaderIcon": null,
-    "uninstallerIcon": null
+    "installerIcon": "build-resources/icon.ico",
+    "installerHeaderIcon": "build-resources/icon.ico",
+    "uninstallerIcon": "build-resources/icon.ico"
   },
   "publish": [
     {

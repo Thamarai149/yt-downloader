@@ -1,7 +1,7 @@
 {
   "appId": "com.ytdownloader.app",
   "productName": "YouTube Downloader Pro",
-  "copyright": "Copyright © 2024 YouTube Downloader Pro",
+  "copyright": "Copyright © 2024 THAMARAISELVAN S",
   "directories": {
     "output": "dist-electron",
     "buildResources": "build-resources"
@@ -58,7 +58,7 @@
     "icon": "build-resources/icon.ico",
     "artifactName": "${productName}-Setup-${version}.${ext}",
     "requestedExecutionLevel": "asInvoker",
-    "publisherName": "YouTube Downloader Pro",
+    "publisherName": "THAMARAISELVAN S",
     "verifyUpdateCodeSignature": false,
     "signingHashAlgorithms": ["sha256"],
     "signDlls": false,
@@ -127,8 +127,8 @@
     "target": ["AppImage", "deb"],
     "icon": "build-resources/icon.png",
     "category": "Utility",
-    "maintainer": "YouTube Downloader Pro <support@ytdownloader.app>",
-    "vendor": "YouTube Downloader Pro",
+    "maintainer": "THAMARAISELVAN S",
+    "vendor": "THAMARAISELVAN S",
     "synopsis": "Modern YouTube video downloader",
     "description": "A modern, feature-rich YouTube video downloader with beautiful UI and real-time progress tracking"
   }

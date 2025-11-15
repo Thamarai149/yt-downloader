@@ -195,8 +195,9 @@ class BackendServerManager {
       // In development, use the backend folder in project root
       return path.join(process.cwd(), 'backend');
     } else {
-      // In production, backend is bundled in resources
-      return path.join(process.resourcesPath, 'backend');
+      // In production, backend is bundled in app.asar
+      // Use app.getAppPath() which points to the asar or unpacked app
+      return path.join(app.getAppPath(), 'backend');
     }
   }
 
@@ -209,6 +210,8 @@ class BackendServerManager {
     const downloadsPath = this.downloadPath || path.join(app.getPath('downloads'), 'YT-Downloads');
     
     // Get resources path for binaries
+    // In production, binaries are in process.resourcesPath/binaries (extraResources)
+    // In development, they're in project root/binaries
     const resourcesPath = this.isDevelopment 
       ? process.cwd() 
       : process.resourcesPath;
@@ -225,6 +228,7 @@ class BackendServerManager {
       ELECTRON_USER_DATA: userDataPath,
       ELECTRON_DOWNLOADS_PATH: downloadsPath,
       // Pass resources path so backend can find binaries
+      // Binaries are in resourcesPath/binaries (extraResources in electron-builder)
       ELECTRON_RESOURCES_PATH: resourcesPath,
       // Disable auto-opening browser
       BROWSER: 'none',

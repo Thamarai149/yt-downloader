@@ -46,11 +46,11 @@
     "mobile",
     "electron"
   ],
-  "author": "Your Name",
+  "author": "THAMARAISELVAN S",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/yt-downloader.git"
+    "url": "https://github.com/Thamarai149/yt-downloader.git"
   },
   "dependencies": {
     "@capacitor/filesystem": "^6.0.1",

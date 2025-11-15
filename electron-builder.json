@@ -1,53 +1,28 @@
 {
-  "appId": "com.ytdownloader.app",
+  "appId": "com.youtube.downloader.pro",
   "productName": "YouTube Downloader Pro",
-  "copyright": "Copyright © 2024 THAMARAISELVAN S",
   "directories": {
     "output": "dist-electron",
     "buildResources": "build-resources"
   },
   "files": [
+    "src/**/*",
     "client/dist/**/*",
     "backend/**/*",
-    "!backend/node_modules",
-    "!backend/downloads",
-    "!backend/package-lock.json",
-    "!backend/test-*.js",
-    "!backend/*.test.js",
-    "!backend/__tests__",
-    "!backend/BINARY_USAGE.md",
-    "!backend/ELECTRON_COMPATIBILITY.md",
-    "!backend/PATH_RESOLVER_DOCS.md",
-    "src/electron/**/*",
-    "!src/electron/__tests__",
-    "!src/electron/**/*.test.js",
-    "!src/electron/**/*.md",
-    "package.json",
-    "LICENSE"
+    "!backend/node_modules/**/*",
+    "!backend/downloads/**/*",
+    "package.json"
   ],
   "extraResources": [
     {
       "from": "binaries",
       "to": "binaries",
-      "filter": [
-        "**/*",
-        "!README.md",
-        "!*.tmp",
-        "!*.zip",
-        "!*.tar.gz",
-        "!*.tar.xz",
-        "!temp_extract"
-      ]
+      "filter": ["**/*"]
     }
   ],
-  "extraMetadata": {
-    "main": "src/electron/main.js"
-  },
-  "asar": true,
   "asarUnpack": [
-    "backend/node_modules/**/*"
+    "backend/**/*"
   ],
-  "compression": "maximum",
   "win": {
     "target": [
       {
@@ -56,80 +31,25 @@
       }
     ],
     "icon": "build-resources/icon.ico",
-    "artifactName": "${productName}-Setup-${version}.${ext}",
-    "requestedExecutionLevel": "asInvoker",
-    "publisherName": "THAMARAISELVAN S",
-    "verifyUpdateCodeSignature": false,
-    "signingHashAlgorithms": ["sha256"],
-    "signDlls": false,
-    "rfc3161TimeStampServer": "http://timestamp.digicert.com",
-    "timeStampServer": "http://timestamp.digicert.com"
+    "artifactName": "${productName}-Setup-${version}.${ext}"
   },
   "nsis": {
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
-    "allowElevation": true,
-    "createDesktopShortcut": "always",
+    "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
     "shortcutName": "YouTube Downloader Pro",
-    "license": "LICENSE",
-    "perMachine": false,
-    "runAfterFinish": true,
-    "deleteAppDataOnUninstall": false,
-    "menuCategory": true,
-    "displayLanguageSelector": false,
-    "installerLanguages": ["en_US"],
-    "language": "1033",
-    "warningsAsErrors": false,
-    "include": "build-resources/installer.nsh",
-    "script": null,
-    "installerIcon": "build-resources/icon.ico",
-    "installerHeaderIcon": "build-resources/icon.ico",
-    "uninstallerIcon": "build-resources/icon.ico"
+    "include": "build-resources/installer.nsh"
   },
-  "publish": [
-    {
-      "provider": "github",
-      "owner": "yourusername",
-      "repo": "youtube-downloader-pro",
-      "releaseType": "release",
-      "publishAutoUpdate": true
-    }
-  ],
   "mac": {
     "target": ["dmg"],
     "icon": "build-resources/icon.icns",
-    "category": "public.app-category.utilities",
-    "hardenedRuntime": true,
-    "gatekeeperAssess": false,
-    "entitlements": "build-resources/entitlements.mac.plist",
-    "entitlementsInherit": "build-resources/entitlements.mac.plist"
-  },
-  "dmg": {
-    "contents": [
-      {
-        "x": 130,
-        "y": 220
-      },
-      {
-        "x": 410,
-        "y": 220,
-        "type": "link",
-        "path": "/Applications"
-      }
-    ],
-    "window": {
-      "width": 540,
-      "height": 380
-    }
+    "category": "public.app-category.utilities"
   },
   "linux": {
-    "target": ["AppImage", "deb"],
+    "target": ["AppImage"],
     "icon": "build-resources/icon.png",
-    "category": "Utility",
-    "maintainer": "THAMARAISELVAN S",
-    "vendor": "THAMARAISELVAN S",
-    "synopsis": "Modern YouTube video downloader",
-    "description": "A modern, feature-rich YouTube video downloader with beautiful UI and real-time progress tracking"
-  }
+    "category": "Utility"
+  },
+  "publish": null
 }

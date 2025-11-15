@@ -8,16 +8,21 @@
   "files": [
     "src/**/*",
     "client/dist/**/*",
-    "backend/**/*",
-    "!backend/node_modules/**/*",
+    "package.json",
+    "!**/node_modules/**/*",
     "!backend/downloads/**/*",
-    "package.json"
+    "!backend/logs/**/*"
   ],
   "extraResources": [
     {
       "from": "binaries",
       "to": "binaries",
       "filter": ["**/*"]
+    },
+    {
+      "from": "backend",
+      "to": "backend",
+      "filter": ["**/*", "!node_modules/**/*", "!downloads/**/*", "!logs/**/*"]
     }
   ],
   "asarUnpack": [

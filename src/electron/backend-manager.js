@@ -174,22 +174,46 @@ class BackendServerManager {
   }
 
   /**
-   * FIXED VERSION — Correct backend path for production
+   * Get backend path for both development and production
    */
   getBackendPath() {
     if (this.isDevelopment) {
       return path.join(process.cwd(), 'backend');
     }
 
+    // Production mode: Check multiple possible locations
     const appPath = app.getAppPath();
+    const possiblePaths = [];
 
-    // Production mode: backend unpacked inside resources/app.asar.unpacked/
+    // 1. Inside app.asar.unpacked (preferred for electron-builder)
     if (appPath.includes('app.asar')) {
-      return path.join(process.resourcesPath, 'app.asar.unpacked', 'backend');
+      possiblePaths.push(path.join(process.resourcesPath, 'app.asar.unpacked', 'backend'));
     }
 
-    // Fallback
-    return path.join(process.resourcesPath, 'backend');
+    // 2. Directly in resources
+    possiblePaths.push(path.join(process.resourcesPath, 'backend'));
+
+    // 3. Relative to app path
+    possiblePaths.push(path.join(appPath, 'backend'));
+
+    // 4. In app directory (for portable builds)
+    possiblePaths.push(path.join(path.dirname(app.getPath('exe')), 'resources', 'backend'));
+
+    // Find the first path that exists
+    for (const backendPath of possiblePaths) {
+      const serverScript = path.join(backendPath, 'server.js');
+      if (fs.existsSync(serverScript)) {
+        logger.info(`Found backend at: ${backendPath}`);
+        return backendPath;
+      }
+    }
+
+    // Log all attempted paths for debugging
+    logger.error('Backend not found in any of these locations:');
+    possiblePaths.forEach(p => logger.error(`  - ${p}`));
+
+    // Return first path as fallback (will fail with clear error)
+    return possiblePaths[0];
   }
 
   /**
@@ -226,11 +250,36 @@ class BackendServerManager {
     return new Promise((resolve, reject) => {
       const serverScript = path.join(backendPath, 'server.js');
 
+      // Verify backend files exist
       if (!fs.existsSync(serverScript)) {
-        return reject(new Error(`Backend server script not found: ${serverScript}`));
+        const error = new Error(`Backend server script not found: ${serverScript}`);
+        logger.error(error.message);
+        
+        // List what's actually in the backend directory
+        const parentDir = path.dirname(serverScript);
+        if (fs.existsSync(parentDir)) {
+          logger.info(`Contents of ${parentDir}:`);
+          try {
+            const files = fs.readdirSync(parentDir);
+            files.forEach(file => logger.info(`  - ${file}`));
+          } catch (e) {
+            logger.error(`Failed to list directory: ${e.message}`);
+          }
+        } else {
+          logger.error(`Backend directory does not exist: ${parentDir}`);
+        }
+        
+        return reject(error);
+      }
+
+      // Check if package.json exists
+      const packageJson = path.join(backendPath, 'package.json');
+      if (!fs.existsSync(packageJson)) {
+        logger.warn(`Backend package.json not found at: ${packageJson}`);
       }
 
       logger.info(`Starting server process: node ${serverScript}`);
+      logger.info(`Working directory: ${backendPath}`);
 
       this.serverProcess = spawn('node', [serverScript], {
         cwd: backendPath,
@@ -239,34 +288,54 @@ class BackendServerManager {
         detached: false,
       });
 
+      let resolved = false;
+
       this.serverProcess.stdout.on('data', (data) => {
         const output = data.toString().trim();
         logger.info(`[Backend] ${output}`);
 
-        if (output.includes('listening on port') || output.includes('Server listening')) {
+        if (!resolved && (output.includes('listening on port') || output.includes('Server listening') || output.includes('Server ready'))) {
+          resolved = true;
           resolve();
         }
       });
 
       this.serverProcess.stderr.on('data', (data) => {
-        logger.error(`[Backend Error] ${data.toString().trim()}`);
+        const error = data.toString().trim();
+        logger.error(`[Backend Error] ${error}`);
+        
+        // If we get a critical error before resolving, reject
+        if (!resolved && (error.includes('Cannot find module') || error.includes('SyntaxError') || error.includes('Error:'))) {
+          resolved = true;
+          reject(new Error(`Backend startup error: ${error}`));
+        }
       });
 
       this.serverProcess.on('exit', (code, signal) => {
         logger.info(`Backend server exited with code ${code}, signal ${signal}`);
+        
+        if (!resolved && code !== 0) {
+          resolved = true;
+          reject(new Error(`Backend process exited with code ${code}`));
+        }
       });
 
       this.serverProcess.on('error', (error) => {
         logger.error('Backend server process error:', error);
-        reject(error);
+        if (!resolved) {
+          resolved = true;
+          reject(error);
+        }
       });
 
-      // Resolve anyway after timeout
+      // Resolve anyway after timeout (backend might be running but not logging)
       setTimeout(() => {
-        if (this.serverProcess && !this.serverProcess.killed) {
+        if (!resolved && this.serverProcess && !this.serverProcess.killed) {
+          logger.warn('Backend started but no confirmation message received');
+          resolved = true;
           resolve();
         }
-      }, 5000);
+      }, 8000);
     });
   }
 
@@ -334,6 +403,54 @@ class BackendServerManager {
 
   isRunning() {
     return this.serverProcess !== null && !this.serverProcess.killed;
+  }
+
+  /**
+   * Check binary status from backend
+   */
+  async checkBinaryStatus() {
+    if (!this.isRunning()) {
+      return { ready: false, error: 'Backend server not running' };
+    }
+
+    try {
+      const http = require('http');
+      const url = `${this.getUrl()}/api/binaries/status`;
+
+      return new Promise((resolve) => {
+        const req = http.request(url, { method: 'GET', timeout: 5000 }, (res) => {
+          let data = '';
+
+          res.on('data', (chunk) => {
+            data += chunk;
+          });
+
+          res.on('end', () => {
+            try {
+              const status = JSON.parse(data);
+              resolve(status);
+            } catch (error) {
+              resolve({ ready: false, error: 'Failed to parse binary status' });
+            }
+          });
+        });
+
+        req.on('error', (error) => {
+          logger.error('Failed to check binary status:', error);
+          resolve({ ready: false, error: error.message });
+        });
+
+        req.on('timeout', () => {
+          req.destroy();
+          resolve({ ready: false, error: 'Request timeout' });
+        });
+
+        req.end();
+      });
+    } catch (error) {
+      logger.error('Error checking binary status:', error);
+      return { ready: false, error: error.message };
+    }
   }
 }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/download_item.dart';
 import '../services/api_service.dart';
@@ -6,6 +7,7 @@ import '../services/websocket_service.dart';
 class DownloadProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
   final WebSocketService _wsService = WebSocketService();
+  Timer? _refreshTimer;
 
   List<DownloadItem> _activeDownloads = [];
   List<DownloadItem> _downloadHistory = [];
@@ -20,6 +22,16 @@ class DownloadProvider extends ChangeNotifier {
   DownloadProvider() {
     _initializeWebSocket();
     fetchHistory();
+    _startPeriodicRefresh();
+  }
+
+  void _startPeriodicRefresh() {
+    // Refresh active downloads every 2 seconds
+    _refreshTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      if (_activeDownloads.isNotEmpty) {
+        fetchActiveDownloads();
+      }
+    });
   }
 
   void _initializeWebSocket() {
@@ -66,7 +78,22 @@ class DownloadProvider extends ChangeNotifier {
         quality: quality,
       );
 
+      // Add to active downloads immediately
+      final downloadItem = DownloadItem(
+        id: result['id'] ?? '',
+        title: result['title'] ?? 'Unknown',
+        url: url,
+        type: type,
+        quality: quality,
+        status: 'downloading',
+        progress: 0,
+        startTime: DateTime.now(),
+      );
+
+      _activeDownloads.add(downloadItem);
       _statusMessage = 'Download started: ${result['title']}';
+
+      // Fetch active downloads to sync with server
       await fetchActiveDownloads();
     } catch (e) {
       _statusMessage = 'Failed to start download: $e';
@@ -137,6 +164,7 @@ class DownloadProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _wsService.disconnect();
     super.dispose();
   }

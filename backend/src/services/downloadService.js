@@ -82,7 +82,8 @@ export class DownloadService {
       output: outputPath,
       noCheckCertificates: true,
       noWarnings: true,
-      addHeader: ['referer:youtube.com', 'user-agent:googlebot']
+      addHeader: ['referer:youtube.com', 'user-agent:googlebot'],
+      progress: true
     };
 
     if (type === 'audio') {
@@ -101,24 +102,20 @@ export class DownloadService {
       }
     }
 
-    // Execute download with progress tracking
-    const process = youtubedl.exec(url, options);
-    
-    process.stdout.on('data', (data) => {
-      const output = data.toString();
-      const progressMatch = output.match(/(\d+\.?\d*)%/);
+    // Execute download - youtube-dl-exec returns a promise
+    try {
+      await youtubedl(url, options);
       
-      if (progressMatch) {
-        const progress = parseFloat(progressMatch[1]);
-        const downloadInfo = this.activeDownloads.get(downloadId);
-        if (downloadInfo) {
-          downloadInfo.progress = progress;
-          this.emitProgress(downloadId, downloadInfo);
-        }
+      // Update progress to 100% on completion
+      const downloadInfo = this.activeDownloads.get(downloadId);
+      if (downloadInfo) {
+        downloadInfo.progress = 100;
+        this.emitProgress(downloadId, downloadInfo);
       }
-    });
-
-    await process;
+    } catch (error) {
+      console.error('Download execution error:', error);
+      throw error;
+    }
   }
 
   emitProgress(downloadId, downloadInfo) {

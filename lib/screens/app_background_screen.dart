@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
-import '../services/wallpaper_service.dart';
 
 class AppBackgroundScreen extends StatefulWidget {
   const AppBackgroundScreen({super.key});
@@ -13,7 +12,6 @@ class AppBackgroundScreen extends StatefulWidget {
 
 class _AppBackgroundScreenState extends State<AppBackgroundScreen> {
   final ImagePicker _picker = ImagePicker();
-  final WallpaperService _wallpaperService = WallpaperService();
   String? _backgroundImagePath;
   bool _isLoading = true;
 
@@ -74,124 +72,6 @@ class _AppBackgroundScreenState extends State<AppBackgroundScreen> {
         const SnackBar(content: Text('Background removed')),
       );
     }
-  }
-
-  Future<void> _setAsWallpaper(WallpaperLocation location) async {
-    if (_backgroundImagePath == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please set a background first')),
-      );
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    final success = await _wallpaperService.setWallpaperFromFile(
-      filePath: _backgroundImagePath!,
-      location: location,
-    );
-
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success ? 'Wallpaper set successfully!' : 'Failed to set wallpaper',
-        ),
-        backgroundColor: success ? Colors.green : Colors.red,
-      ),
-    );
-  }
-
-  void _showWallpaperOptions() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Set as Wallpaper',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            _buildWallpaperOption(
-              icon: Icons.home,
-              label: 'Home Screen',
-              onTap: () {
-                Navigator.pop(context);
-                _setAsWallpaper(WallpaperLocation.homeScreen);
-              },
-            ),
-            const SizedBox(height: 12),
-            _buildWallpaperOption(
-              icon: Icons.lock,
-              label: 'Lock Screen',
-              onTap: () {
-                Navigator.pop(context);
-                _setAsWallpaper(WallpaperLocation.lockScreen);
-              },
-            ),
-            const SizedBox(height: 12),
-            _buildWallpaperOption(
-              icon: Icons.phone_android,
-              label: 'Both Screens',
-              onTap: () {
-                Navigator.pop(context);
-                _setAsWallpaper(WallpaperLocation.both);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWallpaperOption({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: Theme.of(context).primaryColor, size: 28),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
@@ -273,21 +153,6 @@ class _AppBackgroundScreenState extends State<AppBackgroundScreen> {
             const SizedBox(height: 12),
 
             if (_backgroundImagePath != null) ...[
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _showWallpaperOptions,
-                  icon: const Icon(Icons.wallpaper),
-                  label: const Text('Set as Phone Wallpaper'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.all(16),
-                    backgroundColor: Colors.green,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,

@@ -20,15 +20,12 @@ class _WallpaperDialogState extends State<WallpaperDialog> {
   final WallpaperService _wallpaperService = WallpaperService();
   bool _isLoading = false;
 
-  Future<void> _setWallpaper(WallpaperLocation location) async {
+  Future<void> _saveImage() async {
     setState(() {
       _isLoading = true;
     });
 
-    final success = await _wallpaperService.setWallpaperFromUrl(
-      imageUrl: widget.imageUrl,
-      location: location,
-    );
+    final filePath = await _wallpaperService.saveToDownloads(widget.imageUrl);
 
     if (!mounted) return;
 
@@ -38,39 +35,24 @@ class _WallpaperDialogState extends State<WallpaperDialog> {
 
     Navigator.of(context).pop();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success ? 'Wallpaper set successfully!' : 'Failed to set wallpaper',
+    if (filePath != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Image saved to Downloads!\nOpen Gallery → Set as wallpaper',
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 4),
         ),
-        backgroundColor: success ? Colors.green : Colors.red,
-      ),
-    );
-  }
-
-  Future<void> _saveToGallery() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    final success = await _wallpaperService.saveToGallery(widget.imageUrl);
-
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    Navigator.of(context).pop();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success ? 'Image saved to gallery!' : 'Failed to save image',
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to save image'),
+          backgroundColor: Colors.red,
         ),
-        backgroundColor: success ? Colors.green : Colors.red,
-      ),
-    );
+      );
+    }
   }
 
   @override
@@ -112,7 +94,7 @@ class _WallpaperDialogState extends State<WallpaperDialog> {
               children: [
                 // Title
                 Text(
-                  'Set as Wallpaper',
+                  'Save as Wallpaper',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -126,9 +108,34 @@ class _WallpaperDialogState extends State<WallpaperDialog> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
-                // Loading indicator
+                // Info
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue[700]),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Image will be saved to Downloads folder. You can then set it as wallpaper from your Gallery app.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue[900],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Loading indicator or buttons
                 if (_isLoading)
                   const Center(
                     child: Padding(
@@ -137,32 +144,21 @@ class _WallpaperDialogState extends State<WallpaperDialog> {
                     ),
                   )
                 else ...[
-                  // Wallpaper options
-                  _buildOptionButton(
-                    icon: Icons.home,
-                    label: 'Home Screen',
-                    onTap: () => _setWallpaper(WallpaperLocation.homeScreen),
+                  // Save button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _saveImage,
+                      icon: const Icon(Icons.download),
+                      label: const Text('Save to Downloads'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.all(16),
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 8),
-                  _buildOptionButton(
-                    icon: Icons.lock,
-                    label: 'Lock Screen',
-                    onTap: () => _setWallpaper(WallpaperLocation.lockScreen),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildOptionButton(
-                    icon: Icons.phone_android,
-                    label: 'Both Screens',
-                    onTap: () => _setWallpaper(WallpaperLocation.both),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildOptionButton(
-                    icon: Icons.save,
-                    label: 'Save to Gallery',
-                    onTap: _saveToGallery,
-                    color: Colors.green,
-                  ),
-                  const SizedBox(height: 12),
                   // Cancel button
                   SizedBox(
                     width: double.infinity,
@@ -176,46 +172,6 @@ class _WallpaperDialogState extends State<WallpaperDialog> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildOptionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    Color? color,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color ?? Theme.of(context).primaryColor),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: color,
-                ),
-              ),
-            ),
-            Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: Colors.grey[400],
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -2,9 +2,11 @@ import youtubedl from 'youtube-dl-exec';
 import sanitize from 'sanitize-filename';
 import path from 'path';
 import fs from 'fs';
-import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 import { config } from '../config/index.js';
 import { AppError } from '../middleware/errorHandler.js';
+
+const uuidv4 = () => crypto.randomUUID();
 
 export class DownloadService {
   constructor(io) {

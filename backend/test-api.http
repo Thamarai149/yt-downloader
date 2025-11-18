@@ -1,0 +1,121 @@
+### Backend API Test File
+### Use with REST Client extension in VS Code or similar tools
+
+@baseUrl = http://localhost:3001/api
+
+### Health Check
+GET {{baseUrl}}/health
+
+### ===== VIDEO ENDPOINTS =====
+
+### Search Videos
+GET {{baseUrl}}/video/search?query=music&limit=5
+
+### Get Trending Videos
+GET {{baseUrl}}/video/trending?limit=10
+
+### Get Video Info
+GET {{baseUrl}}/video/info?url=https://www.youtube.com/watch?v=dQw4w9WgXcQ
+
+### Get Playlist Info
+GET {{baseUrl}}/video/playlist?url=https://www.youtube.com/playlist?list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf
+
+### ===== DOWNLOAD ENDPOINTS =====
+
+### Start Single Download (Video)
+POST {{baseUrl}}/download
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "type": "video",
+  "quality": "best"
+}
+
+### Start Single Download (Audio)
+POST {{baseUrl}}/download
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "type": "audio",
+  "quality": "best"
+}
+
+### Get Active Downloads
+GET {{baseUrl}}/download/active
+
+### Get Download History
+GET {{baseUrl}}/download/history
+
+### Cancel Download (replace with actual downloadId)
+DELETE {{baseUrl}}/download/123e4567-e89b-12d3-a456-426614174000
+
+### ===== BATCH DOWNLOAD ENDPOINTS =====
+
+### Start Batch Download
+POST {{baseUrl}}/batch
+Content-Type: application/json
+
+{
+  "urls": [
+    "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "https://www.youtube.com/watch?v=9bZkp7q19f0"
+  ],
+  "type": "video",
+  "quality": "best"
+}
+
+### Get All Batches
+GET {{baseUrl}}/batch
+
+### Get Batch Status (replace with actual batchId)
+GET {{baseUrl}}/batch/123e4567-e89b-12d3-a456-426614174000
+
+### Cancel Batch (replace with actual batchId)
+DELETE {{baseUrl}}/batch/123e4567-e89b-12d3-a456-426614174000
+
+### ===== FILE MANAGEMENT ENDPOINTS =====
+
+### List Downloaded Files
+GET {{baseUrl}}/files
+
+### Get Download Path
+GET {{baseUrl}}/files/path
+
+### Update Download Path
+POST {{baseUrl}}/files/path
+Content-Type: application/json
+
+{
+  "downloadPath": "C:\\Users\\YourUsername\\Downloads\\YT-Downloads"
+}
+
+### Delete File (replace with actual filename)
+DELETE {{baseUrl}}/files/video-title.mp4
+
+### ===== ERROR TESTING =====
+
+### Invalid URL
+GET {{baseUrl}}/video/info?url=invalid-url
+
+### Missing Required Field
+POST {{baseUrl}}/download
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+}
+
+### Empty Search Query
+GET {{baseUrl}}/video/search?query=
+
+### Invalid Download Type
+POST {{baseUrl}}/download
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "type": "invalid",
+  "quality": "best"
+}

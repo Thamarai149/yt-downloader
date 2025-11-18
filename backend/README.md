@@ -49,6 +49,12 @@ npm start
 - `GET /api/download/history` - Get download history
 - `DELETE /api/download/:id` - Cancel download
 
+### Batch Downloads
+- `POST /api/batch` - Start batch download
+- `GET /api/batch` - Get all batches
+- `GET /api/batch/:batchId` - Get batch status
+- `DELETE /api/batch/:batchId` - Cancel batch
+
 ### Videos
 - `GET /api/video/info?url=` - Get video info
 - `GET /api/video/search?query=` - Search videos
@@ -63,6 +69,7 @@ npm start
 ## Socket.IO Events
 
 - `download:progress` - Download progress updates
+- `batch:progress` - Batch download progress updates
 
 ## Requirements
 

@@ -1,9 +1,14 @@
 import youtubedl from 'youtube-dl-exec';
 import { AppError } from '../middleware/errorHandler.js';
+import { isValidYouTubeUrl } from '../utils/youtubeValidator.js';
 
 export class VideoInfoService {
   async getVideoInfo(url) {
     try {
+      if (!isValidYouTubeUrl(url)) {
+        throw new AppError('Invalid YouTube URL', 400);
+      }
+
       const info = await youtubedl(url, {
         dumpSingleJson: true,
         noCheckCertificates: true,
@@ -12,6 +17,7 @@ export class VideoInfoService {
       });
 
       return {
+        id: info.id,
         title: info.title,
         duration: info.duration,
         uploader: info.uploader,
@@ -19,6 +25,7 @@ export class VideoInfoService {
         thumbnail: info.thumbnail,
         description: info.description?.substring(0, 300),
         uploadDate: info.upload_date,
+        url: info.webpage_url,
         formats: this.extractFormats(info.formats)
       };
     } catch (error) {
@@ -28,7 +35,40 @@ export class VideoInfoService {
 
   async searchVideos(query, limit = 10) {
     try {
+      if (!query || query.trim().length === 0) {
+        throw new AppError('Search query is required', 400);
+      }
+
       const results = await youtubedl(`ytsearch${limit}:${query}`, {
+        dumpSingleJson: true,
+        flatPlaylist: true,
+        noCheckCertificates: true,
+        noWarnings: true
+      });
+
+      if (!results.entries) {
+        return [];
+      }
+
+      return results.entries.map(entry => ({
+        id: entry.id,
+        title: entry.title,
+        url: entry.webpage_url || `https://www.youtube.com/watch?v=${entry.id}`,
+        duration: entry.duration,
+        thumbnail: entry.thumbnail,
+        uploader: entry.uploader,
+        viewCount: entry.view_count,
+        uploadDate: entry.upload_date
+      }));
+    } catch (error) {
+      throw new AppError(`Search failed: ${error.message}`, 500);
+    }
+  }
+
+  async getTrendingVideos(limit = 20) {
+    try {
+      // Search for trending/popular videos
+      const results = await youtubedl(`ytsearch${limit}:trending music 2024`, {
         dumpSingleJson: true,
         flatPlaylist: true,
         noCheckCertificates: true,
@@ -49,7 +89,7 @@ export class VideoInfoService {
         viewCount: entry.view_count
       }));
     } catch (error) {
-      throw new AppError(`Search failed: ${error.message}`, 500);
+      throw new AppError(`Failed to get trending videos: ${error.message}`, 500);
     }
   }
 

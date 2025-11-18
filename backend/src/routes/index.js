@@ -2,6 +2,7 @@ import { Router } from 'express';
 import downloadRoutes from './downloadRoutes.js';
 import videoRoutes from './videoRoutes.js';
 import fileRoutes from './fileRoutes.js';
+import batchRoutes from './batchRoutes.js';
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.get('/health', (req, res) => {
 router.use('/download', downloadRoutes);
 router.use('/video', videoRoutes);
 router.use('/files', fileRoutes);
+router.use('/batch', batchRoutes);
 
 export default router;

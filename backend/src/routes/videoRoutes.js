@@ -38,7 +38,23 @@ router.get('/search', async (req, res, next) => {
     }
 
     const videoInfoService = getVideoInfoService();
-    const results = await videoInfoService.searchVideos(query, limit);
+    const results = await videoInfoService.searchVideos(query, parseInt(limit) || 10);
+    
+    res.json({
+      success: true,
+      data: results
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/trending', async (req, res, next) => {
+  try {
+    const { limit } = req.query;
+    
+    const videoInfoService = getVideoInfoService();
+    const results = await videoInfoService.getTrendingVideos(parseInt(limit) || 20);
     
     res.json({
       success: true,

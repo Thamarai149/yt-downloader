@@ -31,8 +31,13 @@ const io = new Server(httpServer, {
   }
 });
 
-// Middleware
-app.use(helmet());
+// Middleware - Configure Helmet to be less strict for development
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  crossOriginOpenerPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: false
+}));
 app.use(compression());
 
 // CORS configuration - allow all localhost origins for development
@@ -64,6 +69,10 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
+
 app.use(express.json());
 app.use(requestLogger);
 

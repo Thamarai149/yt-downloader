@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class AppConstants {
   // API Configuration
   static const String defaultBackendUrl = 'http://localhost:3001';
-  static const Duration apiTimeout = Duration(seconds: 30);
+  static const Duration apiTimeout = Duration(seconds: 60);
 
   // Download Types
   static const String downloadTypeVideo = 'video';

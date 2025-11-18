@@ -67,11 +67,14 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             const Text('🎥', style: TextStyle(fontSize: 24)),
             const SizedBox(width: 8),
-            Text(
-              'YT Downloader Pro',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+            Flexible(
+              child: Text(
+                'YT Downloader Pro',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),

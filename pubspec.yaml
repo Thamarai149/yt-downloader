@@ -35,7 +35,6 @@ dependencies:
   # Platform-specific
   share_plus: ^7.2.2
   permission_handler: ^11.2.0
-  file_picker: ^5.5.0
   package_info_plus: ^5.0.1
   dio: ^5.4.0
   flutter_local_notifications: ^15.1.0
@@ -71,4 +70,4 @@ flutter_launcher_icons:
   ios: false
   image_path: "assets/icons/app_icon.png"
   adaptive_icon_background: "#FF0000"
-  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"

@@ -10,7 +10,6 @@
         "cached_network_image",
         "cupertino_icons",
         "dio",
-        "file_picker",
         "flutter",
         "flutter_animate",
         "flutter_local_notifications",
@@ -137,19 +136,6 @@
         "package_info_plus_platform_interface",
         "path",
         "web",
-        "win32"
-      ]
-    },
-    {
-      "name": "file_picker",
-      "version": "5.5.0",
-      "dependencies": [
-        "ffi",
-        "flutter",
-        "flutter_plugin_android_lifecycle",
-        "flutter_web_plugins",
-        "path",
-        "plugin_platform_interface",
         "win32"
       ]
     },
@@ -679,20 +665,6 @@
       "dependencies": []
     },
     {
-      "name": "plugin_platform_interface",
-      "version": "2.1.8",
-      "dependencies": [
-        "meta"
-      ]
-    },
-    {
-      "name": "flutter_plugin_android_lifecycle",
-      "version": "2.0.32",
-      "dependencies": [
-        "flutter"
-      ]
-    },
-    {
       "name": "permission_handler_platform_interface",
       "version": "4.3.0",
       "dependencies": [
@@ -1152,6 +1124,13 @@
       ]
     },
     {
+      "name": "plugin_platform_interface",
+      "version": "2.1.8",
+      "dependencies": [
+        "meta"
+      ]
+    },
+    {
       "name": "file_selector_macos",
       "version": "0.9.4+6",
       "dependencies": [
@@ -1166,6 +1145,13 @@
       "dependencies": [
         "cross_file",
         "file_selector_platform_interface",
+        "flutter"
+      ]
+    },
+    {
+      "name": "flutter_plugin_android_lifecycle",
+      "version": "2.0.32",
+      "dependencies": [
         "flutter"
       ]
     },

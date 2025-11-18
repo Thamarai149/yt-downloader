@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../services/settings_service.dart';
 import '../services/update_service.dart';
@@ -68,34 +67,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _selectDownloadPath() async {
-    String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
-
-    if (selectedDirectory != null) {
-      await _settingsService.setDownloadPath(selectedDirectory);
-      setState(() {
-        _downloadPath = selectedDirectory;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Download path updated')));
-      }
-    }
-  }
-
-  Future<void> _resetDownloadPath() async {
-    await _settingsService.clearDownloadPath();
-    setState(() {
-      _downloadPath = null;
-    });
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Using default download path')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -147,27 +118,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _selectDownloadPath,
-                          icon: const Icon(Icons.folder_open),
-                          label: const Text('Choose Folder'),
-                        ),
-                      ),
-                      if (_downloadPath != null) ...[
-                        const SizedBox(width: 8),
-                        ElevatedButton.icon(
-                          onPressed: _resetDownloadPath,
-                          icon: const Icon(Icons.restore),
-                          label: const Text('Reset'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey,
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green[200]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green[700]),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Downloads are automatically saved to:\n/storage/emulated/0/Android/data/app/Downloads',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.green[900],
+                            ),
                           ),
                         ),
                       ],
-                    ],
+                    ),
                   ),
                 ],
               ),

@@ -1,0 +1,8 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Download Arrow -->
+  <rect x="28" y="12" width="8" height="28" fill="#6366F1" rx="2"/>
+  <path d="M 32 44 L 20 32 L 26 32 L 32 38 L 38 32 L 44 32 Z" fill="#6366F1"/>
+  
+  <!-- Base Line -->
+  <rect x="12" y="48" width="40" height="4" fill="#6366F1" rx="2"/>
+</svg>

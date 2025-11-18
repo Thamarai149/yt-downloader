@@ -1,0 +1,10 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Queue Lines -->
+  <rect x="12" y="12" width="40" height="8" fill="#6366F1" rx="4"/>
+  <rect x="12" y="28" width="32" height="8" fill="#8B5CF6" rx="4"/>
+  <rect x="12" y="44" width="24" height="8" fill="#A78BFA" rx="4"/>
+  
+  <!-- Play Icon -->
+  <circle cx="48" cy="48" r="10" fill="#10B981"/>
+  <path d="M 45 44 L 45 52 L 52 48 Z" fill="white"/>
+</svg>

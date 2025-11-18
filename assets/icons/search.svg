@@ -1,0 +1,10 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Magnifying Glass Circle -->
+  <circle cx="26" cy="26" r="16" fill="none" stroke="#14B8A6" stroke-width="6"/>
+  
+  <!-- Handle -->
+  <line x1="38" y1="38" x2="52" y2="52" stroke="#14B8A6" stroke-width="6" stroke-linecap="round"/>
+  
+  <!-- Inner Circle -->
+  <circle cx="26" cy="26" r="8" fill="#14B8A6" opacity="0.3"/>
+</svg>

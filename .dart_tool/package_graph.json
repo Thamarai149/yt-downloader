@@ -7,7 +7,6 @@
       "name": "youtube_downloader_pro",
       "version": "2.0.0+1",
       "dependencies": [
-        "async_wallpaper",
         "cached_network_image",
         "cupertino_icons",
         "dio",
@@ -17,7 +16,6 @@
         "flutter_local_notifications",
         "flutter_svg",
         "http",
-        "image_gallery_saver",
         "image_picker",
         "intl",
         "open_file",
@@ -87,21 +85,6 @@
         "image_picker_macos",
         "image_picker_platform_interface",
         "image_picker_windows"
-      ]
-    },
-    {
-      "name": "image_gallery_saver",
-      "version": "2.0.3",
-      "dependencies": [
-        "flutter"
-      ]
-    },
-    {
-      "name": "async_wallpaper",
-      "version": "2.1.0",
-      "dependencies": [
-        "flutter",
-        "fluttertoast"
       ]
     },
     {
@@ -542,14 +525,6 @@
         "flutter",
         "flutter_plugin_android_lifecycle",
         "image_picker_platform_interface"
-      ]
-    },
-    {
-      "name": "fluttertoast",
-      "version": "8.2.5",
-      "dependencies": [
-        "flutter",
-        "flutter_web_plugins"
       ]
     },
     {

@@ -28,8 +28,11 @@ class ApiService {
   Future<VideoInfo> getVideoInfo(String url) async {
     try {
       final response =
-          await _dio.get('/api/info', queryParameters: {'url': url});
-      return VideoInfo.fromJson(response.data);
+          await _dio.get('/api/video/info', queryParameters: {'url': url});
+      if (response.data['success'] == true) {
+        return VideoInfo.fromJson(response.data['data']);
+      }
+      throw Exception(response.data['error'] ?? 'Failed to get video info');
     } catch (e) {
       throw Exception('Failed to get video info: $e');
     }
@@ -47,7 +50,10 @@ class ApiService {
         'type': type,
         'quality': quality,
       });
-      return response.data;
+      if (response.data['success'] == true) {
+        return response.data['data'];
+      }
+      throw Exception(response.data['error'] ?? 'Failed to start download');
     } catch (e) {
       throw Exception('Failed to start download: $e');
     }
@@ -65,9 +71,12 @@ class ApiService {
   // Get active downloads
   Future<List<DownloadItem>> getActiveDownloads() async {
     try {
-      final response = await _dio.get('/api/downloads/active');
-      final List<dynamic> data = response.data;
-      return data.map((json) => DownloadItem.fromJson(json)).toList();
+      final response = await _dio.get('/api/download/active');
+      if (response.data['success'] == true) {
+        final List<dynamic> data = response.data['data'];
+        return data.map((json) => DownloadItem.fromJson(json)).toList();
+      }
+      return [];
     } catch (e) {
       throw Exception('Failed to get active downloads: $e');
     }
@@ -76,42 +85,42 @@ class ApiService {
   // Get download history
   Future<List<DownloadItem>> getHistory() async {
     try {
-      final response = await _dio.get('/api/history');
-      final List<dynamic> data = response.data;
-      return data.map((json) => DownloadItem.fromJson(json)).toList();
+      final response = await _dio.get('/api/download/history');
+      if (response.data['success'] == true) {
+        final List<dynamic> data = response.data['data'];
+        return data.map((json) => DownloadItem.fromJson(json)).toList();
+      }
+      return [];
     } catch (e) {
       throw Exception('Failed to get history: $e');
     }
   }
 
-  // Clear history
+  // Clear history (not implemented in new backend, returns empty list)
   Future<void> clearHistory() async {
-    try {
-      await _dio.delete('/api/history');
-    } catch (e) {
-      throw Exception('Failed to clear history: $e');
-    }
+    // Not implemented in new backend
+    return;
   }
 
-  // Delete history item
+  // Delete history item (not implemented in new backend)
   Future<void> deleteHistoryItem(String downloadId) async {
-    try {
-      await _dio.delete('/api/history/$downloadId');
-    } catch (e) {
-      throw Exception('Failed to delete history item: $e');
-    }
+    // Not implemented in new backend
+    return;
   }
 
   // Search videos
   Future<List<SearchResult>> searchVideos(String query,
       {int limit = 20}) async {
     try {
-      final response = await _dio.get('/api/search', queryParameters: {
+      final response = await _dio.get('/api/video/search', queryParameters: {
         'query': query,
         'limit': limit,
       });
-      final List<dynamic> videos = response.data['videos'];
-      return videos.map((json) => SearchResult.fromJson(json)).toList();
+      if (response.data['success'] == true) {
+        final List<dynamic> videos = response.data['data'];
+        return videos.map((json) => SearchResult.fromJson(json)).toList();
+      }
+      return [];
     } catch (e) {
       throw Exception('Failed to search videos: $e');
     }
@@ -121,8 +130,11 @@ class ApiService {
   Future<Map<String, dynamic>> getPlaylistInfo(String url) async {
     try {
       final response =
-          await _dio.get('/api/playlist', queryParameters: {'url': url});
-      return response.data;
+          await _dio.get('/api/video/playlist', queryParameters: {'url': url});
+      if (response.data['success'] == true) {
+        return response.data['data'];
+      }
+      throw Exception(response.data['error'] ?? 'Failed to get playlist info');
     } catch (e) {
       throw Exception('Failed to get playlist info: $e');
     }

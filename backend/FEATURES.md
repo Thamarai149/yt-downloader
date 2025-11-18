@@ -388,4 +388,33 @@ const batchId = batchData.data.batchId;
 // Monitor progress
 socket.on('batch:progress', (data) => {
   if (data.batchId === batchId) {
-    console.log(`Pr
+    console.log(`Progress: ${data.completed}/${data.total}`);
+    if (data.status === 'completed') {
+      console.log('Batch completed!');
+    }
+  }
+});
+```
+
+## 🔍 Advanced Features
+
+### URL Validation
+Automatic YouTube URL validation and extraction:
+- youtube.com/watch?v=
+- youtu.be/
+- youtube.com/embed/
+- youtube.com/v/
+- youtube.com/playlist?list=
+
+### Format Detection
+Automatic detection of available video formats and qualities.
+
+### Metadata Extraction
+Comprehensive metadata extraction:
+- Title, uploader, duration
+- View count, upload date
+- Thumbnail, description
+- Available formats
+
+### Error Recovery
+Graceful error handling with detailed error messages.

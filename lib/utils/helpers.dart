@@ -8,17 +8,18 @@ class Helpers {
     final secs = seconds % 60;
 
     if (hours > 0) {
-      return '${hours}:${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+      return '$hours:${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
     }
-    return '${minutes}:${secs.toString().padLeft(2, '0')}';
+    return '$minutes:${secs.toString().padLeft(2, '0')}';
   }
 
   // Format file size
   static String formatFileSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(2)} KB';
-    if (bytes < 1024 * 1024 * 1024)
+    if (bytes < 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+    }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
 
@@ -74,8 +75,9 @@ class Helpers {
 
   // Calculate download speed
   static String formatSpeed(double bytesPerSecond) {
-    if (bytesPerSecond < 1024)
+    if (bytesPerSecond < 1024) {
       return '${bytesPerSecond.toStringAsFixed(0)} B/s';
+    }
     if (bytesPerSecond < 1024 * 1024) {
       return '${(bytesPerSecond / 1024).toStringAsFixed(2)} KB/s';
     }

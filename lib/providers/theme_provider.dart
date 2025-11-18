@@ -60,7 +60,7 @@ class ThemeProvider extends ChangeNotifier {
   ThemeData get lightTheme => ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
-        colorScheme: ColorScheme.light(
+        colorScheme: const ColorScheme.light(
           primary: AppConstants.primaryColor,
           secondary: AppConstants.secondaryColor,
           tertiary: AppConstants.accentColor,
@@ -115,12 +115,12 @@ class ThemeProvider extends ChangeNotifier {
   ThemeData get darkTheme => ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
-        colorScheme: ColorScheme.dark(
+        colorScheme: const ColorScheme.dark(
           primary: AppConstants.primaryColor,
           secondary: AppConstants.secondaryColor,
           tertiary: AppConstants.accentColor,
           error: AppConstants.errorColor,
-          surface: const Color(0xFF1E293B),
+          surface: Color(0xFF1E293B),
           onPrimary: Colors.white,
           onSecondary: Colors.white,
           onSurface: Colors.white,

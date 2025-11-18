@@ -96,50 +96,154 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(8),
+                  TextField(
+                    controller: TextEditingController(
+                      text: _downloadPath ?? '/storage/emulated/0/Download',
                     ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _downloadPath ?? 'Default (App Downloads folder)',
-                            style: TextStyle(
-                              color: _downloadPath != null
-                                  ? Colors.black87
-                                  : Colors.grey[600],
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      labelText: 'Download Path',
+                      hintText: '/storage/emulated/0/Download',
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.save),
+                        onPressed: () async {
+                          // Save custom path
+                          final controller = TextEditingController(
+                            text:
+                                _downloadPath ?? '/storage/emulated/0/Download',
+                          );
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Set Download Path'),
+                              content: TextField(
+                                controller: controller,
+                                decoration: const InputDecoration(
+                                  labelText: 'Path',
+                                  hintText: '/storage/emulated/0/Download',
+                                ),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Cancel'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () async {
+                                    final path = controller.text.trim();
+                                    if (path.isNotEmpty) {
+                                      final navigator = Navigator.of(context);
+                                      final messenger =
+                                          ScaffoldMessenger.of(context);
+                                      await _settingsService
+                                          .setDownloadPath(path);
+                                      setState(() {
+                                        _downloadPath = path;
+                                      });
+                                      if (mounted) {
+                                        navigator.pop();
+                                        messenger.showSnackBar(
+                                          const SnackBar(
+                                            content:
+                                                Text('Download path updated!'),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  child: const Text('Save'),
+                                ),
+                              ],
                             ),
+                          );
+                        },
+                        tooltip: 'Change path',
+                      ),
+                    ),
+                    readOnly: true,
+                    onTap: () async {
+                      // Show dialog to change path
+                      final controller = TextEditingController(
+                        text: _downloadPath ?? '/storage/emulated/0/Download',
+                      );
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Set Download Path'),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              TextField(
+                                controller: controller,
+                                decoration: const InputDecoration(
+                                  labelText: 'Path',
+                                  hintText: '/storage/emulated/0/Download',
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Common paths:\n'
+                                '• /storage/emulated/0/Download\n'
+                                '• /storage/emulated/0/Movies\n'
+                                '• /storage/emulated/0/Music',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.green[200]!),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.check_circle, color: Colors.green[700]),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Downloads are automatically saved to:\n/storage/emulated/0/Android/data/app/Downloads',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.green[900],
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
                             ),
-                          ),
+                            TextButton(
+                              onPressed: () async {
+                                final navigator = Navigator.of(context);
+                                final messenger = ScaffoldMessenger.of(context);
+                                await _settingsService.clearDownloadPath();
+                                setState(() {
+                                  _downloadPath = null;
+                                });
+                                if (mounted) {
+                                  navigator.pop();
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Reset to default path'),
+                                    ),
+                                  );
+                                }
+                              },
+                              child: const Text('Reset'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () async {
+                                final path = controller.text.trim();
+                                if (path.isNotEmpty) {
+                                  final navigator = Navigator.of(context);
+                                  final messenger =
+                                      ScaffoldMessenger.of(context);
+                                  await _settingsService.setDownloadPath(path);
+                                  setState(() {
+                                    _downloadPath = path;
+                                  });
+                                  if (mounted) {
+                                    navigator.pop();
+                                    messenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Download path updated!'),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                              child: const Text('Save'),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                 ],
               ),

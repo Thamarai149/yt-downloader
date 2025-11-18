@@ -19,18 +19,17 @@ class YouTubeService {
       );
 
       // Get available qualities
-      final videoQualities =
-          manifest.muxed
-              .map(
-                (s) =>
-                    int.tryParse(
-                      s.qualityLabel.replaceAll(RegExp(r'[^0-9]'), ''),
-                    ) ??
-                    0,
-              )
-              .toSet()
-              .toList()
-            ..sort((a, b) => b.compareTo(a));
+      final videoQualities = manifest.muxed
+          .map(
+            (s) =>
+                int.tryParse(
+                  s.qualityLabel.replaceAll(RegExp(r'[^0-9]'), ''),
+                ) ??
+                0,
+          )
+          .toSet()
+          .toList()
+        ..sort((a, b) => b.compareTo(a));
 
       return VideoInfo(
         title: video.title,
@@ -107,8 +106,7 @@ class YouTubeService {
       } else {
         final qualityNum =
             int.tryParse(quality.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-        streamInfo =
-            manifest.muxed
+        streamInfo = manifest.muxed
                 .where((s) => s.qualityLabel.contains(qualityNum.toString()))
                 .firstOrNull ??
             manifest.muxed.withHighestBitrate();
@@ -174,10 +172,8 @@ class YouTubeService {
   Future<Map<String, dynamic>> getPlaylistInfo(String url) async {
     try {
       final playlist = await _ytExplode.playlists.get(url);
-      final videoList = await _ytExplode.playlists
-          .getVideos(playlist.id)
-          .take(50)
-          .toList();
+      final videoList =
+          await _ytExplode.playlists.getVideos(playlist.id).take(50).toList();
 
       return {
         'title': playlist.title,
@@ -233,18 +229,14 @@ class YouTubeService {
       }
     }
 
-    // Use default path
+    // Use public Downloads folder (visible in file manager)
     if (Platform.isAndroid) {
-      // Try to get external storage directory
-      final dir = await getExternalStorageDirectory();
-      if (dir != null) {
-        // Create Downloads folder
-        final downloadDir = Directory('${dir.path}/Downloads');
-        if (!await downloadDir.exists()) {
-          await downloadDir.create(recursive: true);
-        }
-        return downloadDir;
+      // Use public Downloads directory
+      final downloadDir = Directory('/storage/emulated/0/Download');
+      if (!await downloadDir.exists()) {
+        await downloadDir.create(recursive: true);
       }
+      return downloadDir;
     }
     // Fallback to app documents directory
     return await getApplicationDocumentsDirectory();

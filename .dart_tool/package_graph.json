@@ -14,6 +14,7 @@
         "flutter",
         "flutter_animate",
         "flutter_local_notifications",
+        "flutter_svg",
         "intl",
         "path_provider",
         "permission_handler",
@@ -918,6 +919,51 @@
       "name": "synchronized",
       "version": "3.4.0",
       "dependencies": []
+    },
+    {
+      "name": "flutter_svg",
+      "version": "2.2.2",
+      "dependencies": [
+        "flutter",
+        "http",
+        "vector_graphics",
+        "vector_graphics_codec",
+        "vector_graphics_compiler"
+      ]
+    },
+    {
+      "name": "vector_graphics_codec",
+      "version": "1.1.13",
+      "dependencies": []
+    },
+    {
+      "name": "vector_graphics_compiler",
+      "version": "1.1.19",
+      "dependencies": [
+        "args",
+        "meta",
+        "path",
+        "path_parsing",
+        "vector_graphics_codec",
+        "xml"
+      ]
+    },
+    {
+      "name": "path_parsing",
+      "version": "1.1.0",
+      "dependencies": [
+        "meta",
+        "vector_math"
+      ]
+    },
+    {
+      "name": "vector_graphics",
+      "version": "1.1.19",
+      "dependencies": [
+        "flutter",
+        "http",
+        "vector_graphics_codec"
+      ]
     }
   ],
   "configVersion": 1

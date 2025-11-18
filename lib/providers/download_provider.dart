@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../models/download_item.dart';
-import '../services/api_service.dart';
-import '../services/websocket_service.dart';
+import '../services/youtube_service.dart';
 
 class DownloadProvider extends ChangeNotifier {
-  final ApiService _apiService = ApiService();
-  final WebSocketService _wsService = WebSocketService();
-  Timer? _refreshTimer;
+  final YouTubeService _youtubeService = YouTubeService();
+  final _uuid = const Uuid();
 
-  List<DownloadItem> _activeDownloads = [];
+  final List<DownloadItem> _activeDownloads = [];
   List<DownloadItem> _downloadHistory = [];
   bool _isLoading = false;
   String _statusMessage = '';
@@ -20,47 +21,7 @@ class DownloadProvider extends ChangeNotifier {
   String get statusMessage => _statusMessage;
 
   DownloadProvider() {
-    _initializeWebSocket();
-    fetchHistory();
-    _startPeriodicRefresh();
-  }
-
-  void _startPeriodicRefresh() {
-    // Refresh active downloads every 2 seconds
-    _refreshTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
-      if (_activeDownloads.isNotEmpty) {
-        fetchActiveDownloads();
-      }
-    });
-  }
-
-  void _initializeWebSocket() {
-    _wsService.connect();
-
-    _wsService.onDownloadStarted = (download) {
-      _activeDownloads.add(download);
-      notifyListeners();
-    };
-
-    _wsService.onDownloadProgress = (download) {
-      final index = _activeDownloads.indexWhere((d) => d.id == download.id);
-      if (index != -1) {
-        _activeDownloads[index] = download;
-        notifyListeners();
-      }
-    };
-
-    _wsService.onDownloadCompleted = (download) {
-      _activeDownloads.removeWhere((d) => d.id == download.id);
-      _downloadHistory.insert(0, download);
-      notifyListeners();
-    };
-
-    _wsService.onDownloadFailed = (download) {
-      _activeDownloads.removeWhere((d) => d.id == download.id);
-      _downloadHistory.insert(0, download);
-      notifyListeners();
-    };
+    _loadHistory();
   }
 
   Future<void> startDownload({
@@ -72,29 +33,28 @@ class DownloadProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result = await _apiService.startDownload(
-        url: url,
-        type: type,
-        quality: quality,
-      );
+      // Get video info first
+      final videoInfo = await _youtubeService.getVideoInfo(url);
 
-      // Add to active downloads immediately
+      // Create download item
       final downloadItem = DownloadItem(
-        id: result['id'] ?? '',
-        title: result['title'] ?? 'Unknown',
+        id: _uuid.v4(),
+        title: videoInfo.title,
         url: url,
         type: type,
         quality: quality,
         status: 'downloading',
         progress: 0,
         startTime: DateTime.now(),
+        thumbnail: videoInfo.thumbnail,
       );
 
       _activeDownloads.add(downloadItem);
-      _statusMessage = 'Download started: ${result['title']}';
+      _statusMessage = 'Download started: ${videoInfo.title}';
+      notifyListeners();
 
-      // Fetch active downloads to sync with server
-      await fetchActiveDownloads();
+      // Start download in background
+      _performDownload(downloadItem);
     } catch (e) {
       _statusMessage = 'Failed to start download: $e';
     }
@@ -103,57 +63,109 @@ class DownloadProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _performDownload(DownloadItem item) async {
+    try {
+      String filePath;
+
+      if (item.type == 'audio') {
+        filePath = await _youtubeService.downloadAudio(
+          url: item.url,
+          onProgress: (progress) {
+            _updateDownloadProgress(item.id, progress);
+          },
+        );
+      } else {
+        filePath = await _youtubeService.downloadVideo(
+          url: item.url,
+          quality: item.quality,
+          onProgress: (progress) {
+            _updateDownloadProgress(item.id, progress);
+          },
+        );
+      }
+
+      // Download completed
+      final completedItem = item.copyWith(
+        status: 'completed',
+        progress: 100,
+        endTime: DateTime.now(),
+      );
+      completedItem.fileName = filePath.split('/').last;
+
+      _activeDownloads.removeWhere((d) => d.id == item.id);
+      _downloadHistory.insert(0, completedItem);
+      _saveHistory();
+
+      _statusMessage = 'Download completed: ${item.title}';
+      notifyListeners();
+    } catch (e) {
+      // Download failed
+      final failedItem = item.copyWith(
+        status: 'failed',
+        endTime: DateTime.now(),
+        error: e.toString(),
+      );
+
+      _activeDownloads.removeWhere((d) => d.id == item.id);
+      _downloadHistory.insert(0, failedItem);
+      _saveHistory();
+
+      _statusMessage = 'Download failed: ${item.title}';
+      notifyListeners();
+    }
+  }
+
+  void _updateDownloadProgress(String downloadId, double progress) {
+    final index = _activeDownloads.indexWhere((d) => d.id == downloadId);
+    if (index != -1) {
+      _activeDownloads[index].progress = progress;
+      notifyListeners();
+    }
+  }
+
   Future<void> cancelDownload(String downloadId) async {
-    try {
-      await _apiService.cancelDownload(downloadId);
-      _activeDownloads.removeWhere((d) => d.id == downloadId);
-      _statusMessage = 'Download cancelled';
-      notifyListeners();
-    } catch (e) {
-      _statusMessage = 'Failed to cancel download: $e';
-      notifyListeners();
-    }
-  }
-
-  Future<void> fetchActiveDownloads() async {
-    try {
-      _activeDownloads = await _apiService.getActiveDownloads();
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Failed to fetch active downloads: $e');
-    }
-  }
-
-  Future<void> fetchHistory() async {
-    try {
-      _downloadHistory = await _apiService.getHistory();
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Failed to fetch history: $e');
-    }
+    _activeDownloads.removeWhere((d) => d.id == downloadId);
+    _statusMessage = 'Download cancelled';
+    notifyListeners();
   }
 
   Future<void> clearHistory() async {
-    try {
-      await _apiService.clearHistory();
-      _downloadHistory.clear();
-      _statusMessage = 'History cleared';
-      notifyListeners();
-    } catch (e) {
-      _statusMessage = 'Failed to clear history: $e';
-      notifyListeners();
-    }
+    _downloadHistory.clear();
+    await _saveHistory();
+    _statusMessage = 'History cleared';
+    notifyListeners();
   }
 
   Future<void> deleteHistoryItem(String downloadId) async {
+    _downloadHistory.removeWhere((d) => d.id == downloadId);
+    await _saveHistory();
+    _statusMessage = 'Download removed from history';
+    notifyListeners();
+  }
+
+  Future<void> _loadHistory() async {
     try {
-      await _apiService.deleteHistoryItem(downloadId);
-      _downloadHistory.removeWhere((d) => d.id == downloadId);
-      _statusMessage = 'Download removed from history';
-      notifyListeners();
+      final prefs = await SharedPreferences.getInstance();
+      final historyJson = prefs.getString('download_history');
+      if (historyJson != null) {
+        final List<dynamic> decoded = json.decode(historyJson);
+        _downloadHistory =
+            decoded.map((item) => DownloadItem.fromJson(item)).toList();
+        notifyListeners();
+      }
     } catch (e) {
-      _statusMessage = 'Failed to remove download: $e';
-      notifyListeners();
+      debugPrint('Failed to load history: $e');
+    }
+  }
+
+  Future<void> _saveHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final historyJson =
+          json.encode(_downloadHistory.map((item) => item.toJson()).toList());
+      await prefs.setString('download_history', historyJson);
+    } catch (e) {
+      debugPrint('Failed to save history: $e');
     }
   }
 
@@ -164,8 +176,7 @@ class DownloadProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
-    _wsService.disconnect();
+    _youtubeService.dispose();
     super.dispose();
   }
 }

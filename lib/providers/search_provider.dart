@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
-import '../services/api_service.dart';
+import '../services/youtube_service.dart';
 import '../models/search_result.dart';
 
 class SearchProvider with ChangeNotifier {
-  final ApiService _apiService = ApiService();
+  final YouTubeService _youtubeService = YouTubeService();
 
   List<SearchResult> _results = [];
   bool _isLoading = false;
@@ -19,7 +19,7 @@ class SearchProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      _results = await _apiService.searchVideos(query, limit: 20);
+      _results = await _youtubeService.searchVideos(query, limit: 20);
     } catch (e) {
       _error = e.toString();
       _results = [];
@@ -33,5 +33,11 @@ class SearchProvider with ChangeNotifier {
     _results = [];
     _error = null;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _youtubeService.dispose();
+    super.dispose();
   }
 }

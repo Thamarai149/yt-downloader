@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
-import '../services/api_service.dart';
+import 'download_provider.dart';
 
 class BatchProvider with ChangeNotifier {
-  final ApiService _apiService = ApiService();
+  final DownloadProvider _downloadProvider;
 
   bool _isLoading = false;
   String? _error;
@@ -13,6 +13,8 @@ class BatchProvider with ChangeNotifier {
   String? get error => _error;
   int get totalCount => _totalCount;
   int get completedCount => _completedCount;
+
+  BatchProvider(this._downloadProvider);
 
   Future<void> startBatchDownload({
     required List<String> urls,
@@ -28,7 +30,7 @@ class BatchProvider with ChangeNotifier {
     try {
       for (final url in urls) {
         try {
-          await _apiService.startDownload(
+          await _downloadProvider.startDownload(
             url: url,
             type: type,
             quality: quality,

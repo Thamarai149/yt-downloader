@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/download_provider.dart';
 import '../providers/settings_provider.dart';
-import '../services/api_service.dart';
+import '../services/youtube_service.dart';
 import '../models/video_info.dart';
 import '../utils/constants.dart';
 import '../utils/helpers.dart';
@@ -17,7 +17,7 @@ class SingleDownloadScreen extends StatefulWidget {
 
 class _SingleDownloadScreenState extends State<SingleDownloadScreen> {
   final TextEditingController _urlController = TextEditingController();
-  final ApiService _apiService = ApiService();
+  final YouTubeService _youtubeService = YouTubeService();
 
   String _selectedType = AppConstants.downloadTypeVideo;
   String _selectedQuality = 'best';
@@ -31,12 +31,12 @@ class _SingleDownloadScreenState extends State<SingleDownloadScreen> {
     final settings = Provider.of<SettingsProvider>(context, listen: false);
     _selectedType = settings.defaultType;
     _selectedQuality = settings.defaultQuality;
-    _apiService.setBaseUrl(settings.backendUrl);
   }
 
   @override
   void dispose() {
     _urlController.dispose();
+    _youtubeService.dispose();
     super.dispose();
   }
 
@@ -65,7 +65,7 @@ class _SingleDownloadScreenState extends State<SingleDownloadScreen> {
     });
 
     try {
-      final info = await _apiService.getVideoInfo(url);
+      final info = await _youtubeService.getVideoInfo(url);
       setState(() {
         _videoInfo = info;
         _isLoadingInfo = false;

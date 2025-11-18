@@ -1,8 +1,17 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 
 class AppConstants {
   // API Configuration
-  static const String defaultBackendUrl = 'http://localhost:3001';
+  static String get defaultBackendUrl {
+    if (Platform.isAndroid) {
+      // For Android emulator: 10.0.2.2 maps to host machine's localhost
+      // For physical device: User should update this in settings to their computer's IP
+      return 'http://10.0.2.2:3001';
+    }
+    return 'http://localhost:3001';
+  }
+
   static const Duration apiTimeout = Duration(seconds: 60);
 
   // Download Types

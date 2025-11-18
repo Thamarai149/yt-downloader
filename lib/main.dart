@@ -22,7 +22,11 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DownloadProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => SearchProvider()),
-        ChangeNotifierProvider(create: (_) => BatchProvider()),
+        ChangeNotifierProxyProvider<DownloadProvider, BatchProvider>(
+          create: (context) => BatchProvider(context.read<DownloadProvider>()),
+          update: (context, downloadProvider, previous) =>
+              previous ?? BatchProvider(downloadProvider),
+        ),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {

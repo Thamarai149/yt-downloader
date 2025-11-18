@@ -3,8 +3,12 @@ import sanitize from 'sanitize-filename';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { config } from '../config/index.js';
 import { AppError } from '../middleware/errorHandler.js';
+
+const execPromise = promisify(exec);
 
 const uuidv4 = () => crypto.randomUUID();
 
@@ -91,12 +95,19 @@ export class DownloadService {
       options.audioFormat = 'mp3';
       options.audioQuality = 0;
     } else {
-      if (quality === '4k') {
-        options.format = 'bestvideo[height<=2160]+bestaudio/best';
-      } else if (quality === '1080') {
-        options.format = 'bestvideo[height<=1080]+bestaudio/best';
+      // For 2K/4K, download video and audio separately, then merge with FFmpeg
+      const needsMerging = quality === '4k' || quality === '2k';
+      
+      if (needsMerging) {
+        await this.downloadAndMerge(url, quality, outputPath, downloadId);
+        return;
+      }
+      
+      // For 1080p and below, use muxed streams (video+audio combined)
+      if (quality === '1080') {
+        options.format = 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080]';
       } else if (quality === '720') {
-        options.format = 'bestvideo[height<=720]+bestaudio/best';
+        options.format = 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]';
       } else {
         options.format = 'best';
       }
@@ -115,6 +126,81 @@ export class DownloadService {
     } catch (error) {
       console.error('Download execution error:', error);
       throw error;
+    }
+  }
+
+  async downloadAndMerge(url, quality, outputPath, downloadId) {
+    const tempDir = path.join(this.downloadPath, 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    const videoTemp = path.join(tempDir, `video_${downloadId}.mp4`);
+    const audioTemp = path.join(tempDir, `audio_${downloadId}.m4a`);
+
+    try {
+      // Download video
+      const downloadInfo = this.activeDownloads.get(downloadId);
+      if (downloadInfo) {
+        downloadInfo.status = 'downloading video';
+        this.emitProgress(downloadId, downloadInfo);
+      }
+
+      const videoFormat = quality === '4k' ? 'bestvideo[height<=2160][ext=mp4]' : 'bestvideo[height<=1440][ext=mp4]';
+      await youtubedl(url, {
+        output: videoTemp,
+        format: videoFormat,
+        noCheckCertificates: true,
+        noWarnings: true
+      });
+
+      // Download audio
+      if (downloadInfo) {
+        downloadInfo.status = 'downloading audio';
+        downloadInfo.progress = 50;
+        this.emitProgress(downloadId, downloadInfo);
+      }
+
+      await youtubedl(url, {
+        output: audioTemp,
+        format: 'bestaudio[ext=m4a]',
+        noCheckCertificates: true,
+        noWarnings: true
+      });
+
+      // Merge with FFmpeg
+      if (downloadInfo) {
+        downloadInfo.status = 'merging';
+        downloadInfo.progress = 75;
+        this.emitProgress(downloadId, downloadInfo);
+      }
+
+      await this.mergeWithFFmpeg(videoTemp, audioTemp, outputPath);
+
+      // Clean up temp files
+      fs.unlinkSync(videoTemp);
+      fs.unlinkSync(audioTemp);
+
+      // Update progress
+      if (downloadInfo) {
+        downloadInfo.progress = 100;
+        this.emitProgress(downloadId, downloadInfo);
+      }
+    } catch (error) {
+      // Clean up temp files on error
+      if (fs.existsSync(videoTemp)) fs.unlinkSync(videoTemp);
+      if (fs.existsSync(audioTemp)) fs.unlinkSync(audioTemp);
+      throw error;
+    }
+  }
+
+  async mergeWithFFmpeg(videoPath, audioPath, outputPath) {
+    const ffmpegCommand = `ffmpeg -i "${videoPath}" -i "${audioPath}" -c:v copy -c:a aac -strict experimental "${outputPath}"`;
+    
+    try {
+      await execPromise(ffmpegCommand);
+    } catch (error) {
+      throw new Error(`FFmpeg merge failed: ${error.message}`);
     }
   }
 

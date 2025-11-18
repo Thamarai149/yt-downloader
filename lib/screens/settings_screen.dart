@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/settings_service.dart';
 import '../services/update_service.dart';
 import '../widgets/update_dialog.dart';
@@ -18,6 +19,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _downloadPath;
   String _defaultQuality = 'highest';
   String _defaultType = 'video';
+  String _defaultAudioQuality = 'high';
   bool _isLoading = true;
   String _appVersion = '';
   bool _checkingUpdate = false;
@@ -33,11 +35,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final quality = await _settingsService.getDefaultQuality();
     final type = await _settingsService.getDefaultType();
     final packageInfo = await PackageInfo.fromPlatform();
+    final prefs = await SharedPreferences.getInstance();
+    final audioQuality = prefs.getString('default_audio_quality') ?? 'high';
 
     setState(() {
       _downloadPath = path;
       _defaultQuality = quality;
       _defaultType = type;
+      _defaultAudioQuality = audioQuality;
       _appVersion = '${packageInfo.version} (${packageInfo.buildNumber})';
       _isLoading = false;
     });
@@ -260,10 +265,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.high_quality, color: Colors.green),
+                      const Icon(Icons.videocam, color: Colors.green),
                       const SizedBox(width: 12),
                       Text(
-                        'Default Quality',
+                        'Default Video Quality',
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                     ],
@@ -281,12 +286,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     items: const [
                       DropdownMenuItem(
                         value: 'highest',
-                        child: Text('Highest Available'),
+                        child: Text('Highest Available (Best Quality)'),
                       ),
-                      DropdownMenuItem(value: '1080', child: Text('1080p')),
-                      DropdownMenuItem(value: '720', child: Text('720p')),
-                      DropdownMenuItem(value: '480', child: Text('480p')),
-                      DropdownMenuItem(value: '360', child: Text('360p')),
+                      DropdownMenuItem(
+                          value: '2160', child: Text('4K (2160p)')),
+                      DropdownMenuItem(
+                          value: '1440', child: Text('2K (1440p)')),
+                      DropdownMenuItem(
+                          value: '1080', child: Text('Full HD (1080p)')),
+                      DropdownMenuItem(value: '720', child: Text('HD (720p)')),
+                      DropdownMenuItem(value: '480', child: Text('SD (480p)')),
+                      DropdownMenuItem(value: '360', child: Text('Low (360p)')),
+                      DropdownMenuItem(
+                          value: '240', child: Text('Very Low (240p)')),
                     ],
                     onChanged: (value) async {
                       if (value != null) {
@@ -296,6 +308,72 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         });
                       }
                     },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Default Audio Quality Section
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.audiotrack, color: Colors.purple),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Default Audio Quality',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: _defaultAudioQuality,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      labelText: 'Audio Quality',
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'high',
+                        child: Text('🎵 High Quality (Best)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'medium',
+                        child: Text('🎶 Medium Quality'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'low',
+                        child: Text('🎼 Low Quality (Faster)'),
+                      ),
+                    ],
+                    onChanged: (value) async {
+                      if (value != null) {
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setString('default_audio_quality', value);
+                        setState(() {
+                          _defaultAudioQuality = value;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'For music and audio-only downloads',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
                   ),
                 ],
               ),

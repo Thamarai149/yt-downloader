@@ -18,17 +18,26 @@ class YouTubeService {
         video.id,
       );
 
-      // Get available qualities
-      final videoQualities = manifest.muxed
-          .map(
-            (s) =>
-                int.tryParse(
-                  s.qualityLabel.replaceAll(RegExp(r'[^0-9]'), ''),
-                ) ??
-                0,
-          )
-          .toSet()
-          .toList()
+      // Get available qualities from both muxed and video-only streams
+      final allQualities = <int>{};
+
+      // Add muxed stream qualities
+      for (var stream in manifest.muxed) {
+        final quality = int.tryParse(
+          stream.qualityLabel.replaceAll(RegExp(r'[^0-9]'), ''),
+        );
+        if (quality != null) allQualities.add(quality);
+      }
+
+      // Add video-only stream qualities (includes 4K, 2K, etc.)
+      for (var stream in manifest.videoOnly) {
+        final quality = int.tryParse(
+          stream.qualityLabel.replaceAll(RegExp(r'[^0-9]'), ''),
+        );
+        if (quality != null) allQualities.add(quality);
+      }
+
+      final videoQualities = allQualities.toList()
         ..sort((a, b) => b.compareTo(a));
 
       return VideoInfo(
@@ -99,23 +108,45 @@ class YouTubeService {
         video.id,
       );
 
-      // Get stream based on quality
+      final qualityNum =
+          int.tryParse(quality.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+
+      // For 2K (1440p) and 4K (2160p), download video and audio separately
+      final isHighQuality = qualityNum >= 1440;
+
+      if (isHighQuality) {
+        // Download video and audio separately for maximum quality
+        return await _downloadVideoAndAudioSeparately(
+          video,
+          manifest,
+          qualityNum,
+          onProgress,
+        );
+      }
+
+      // For 1080p and below, use muxed streams (video + audio combined)
       yt.StreamInfo streamInfo;
+
       if (quality == 'highest') {
         streamInfo = manifest.muxed.withHighestBitrate();
       } else {
-        final qualityNum =
-            int.tryParse(quality.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-        streamInfo = manifest.muxed
-                .where((s) => s.qualityLabel.contains(qualityNum.toString()))
-                .firstOrNull ??
-            manifest.muxed.withHighestBitrate();
+        // Try to find muxed stream with requested quality
+        var muxedStream = manifest.muxed
+            .where((s) => s.qualityLabel.contains(qualityNum.toString()))
+            .firstOrNull;
+
+        if (muxedStream != null) {
+          streamInfo = muxedStream;
+        } else {
+          // Fallback to highest available muxed stream
+          streamInfo = manifest.muxed.withHighestBitrate();
+        }
       }
 
       // Get download directory
       final dir = await _getDownloadDirectory();
       final fileName = _sanitizeFileName(
-        '${video.title}.${streamInfo.container.name}',
+        '${video.title}_${streamInfo.qualityLabel}.${streamInfo.container.name}',
       );
       final file = File('${dir.path}/$fileName');
 
@@ -131,6 +162,61 @@ class YouTubeService {
     } catch (e) {
       throw Exception('Failed to download video: $e');
     }
+  }
+
+  // Download video and audio separately for 2K/4K quality
+  Future<String> _downloadVideoAndAudioSeparately(
+    yt.Video video,
+    yt.StreamManifest manifest,
+    int qualityNum,
+    Function(double) onProgress,
+  ) async {
+    final dir = await _getDownloadDirectory();
+
+    // Find best video stream for requested quality
+    // Sort by bitrate to get highest quality for the resolution
+    var videoStreams = manifest.videoOnly
+        .where((s) => s.qualityLabel.contains(qualityNum.toString()))
+        .toList()
+      ..sort(
+          (a, b) => b.bitrate.bitsPerSecond.compareTo(a.bitrate.bitsPerSecond));
+
+    var videoStream = videoStreams.isNotEmpty ? videoStreams.first : null;
+
+    // If exact quality not found, get highest available video stream
+    videoStream ??= manifest.videoOnly.withHighestBitrate();
+
+    // Get best audio stream (highest bitrate for maximum quality)
+    final audioStream = manifest.audioOnly.withHighestBitrate();
+
+    // Download video (0-60% progress)
+    final videoFileName = _sanitizeFileName(
+      '${video.title}_${videoStream.qualityLabel}_VIDEO.${videoStream.container.name}',
+    );
+    final videoFile = File('${dir.path}/$videoFileName');
+
+    await _downloadWithProgress(
+      videoStream.url.toString(),
+      videoFile,
+      videoStream.size.totalBytes,
+      (progress) => onProgress(progress * 0.6), // 0-60%
+    );
+
+    // Download audio (60-100% progress)
+    final audioFileName = _sanitizeFileName(
+      '${video.title}_AUDIO.${audioStream.container.name}',
+    );
+    final audioFile = File('${dir.path}/$audioFileName');
+
+    await _downloadWithProgress(
+      audioStream.url.toString(),
+      audioFile,
+      audioStream.size.totalBytes,
+      (progress) => onProgress(60 + (progress * 0.4)), // 60-100%
+    );
+
+    // Return video file path (audio is saved separately)
+    return videoFile.path;
   }
 
   // Download audio with progress callback

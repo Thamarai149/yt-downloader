@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/search_result.dart';
 import '../providers/download_provider.dart';
 import '../utils/constants.dart';
+import 'wallpaper_dialog.dart';
 
 class SearchResultCard extends StatelessWidget {
   final SearchResult result;
@@ -125,6 +126,28 @@ class SearchResultCard extends StatelessWidget {
                       height: 200,
                       color: Colors.grey.shade300,
                       child: const Icon(Icons.error, size: 48),
+                    ),
+                  ),
+                  // Wallpaper button
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: IconButton(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => WallpaperDialog(
+                            imageUrl: result.thumbnail,
+                            title: result.title,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.wallpaper),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.black54,
+                        foregroundColor: Colors.white,
+                      ),
+                      tooltip: 'Set as Wallpaper',
                     ),
                   ),
                   Positioned(

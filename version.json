@@ -1,0 +1,7 @@
+{
+  "version": "2.0.0",
+  "buildNumber": 1,
+  "downloadUrl": "https://github.com/Thamarai149/ytdownloader/releases/download/v2.0.0/app-release.apk",
+  "releaseNotes": "🎉 New Features:\n• Custom download path selection\n• Default quality and type settings\n• In-app update notifications\n• Improved UI and performance\n\n🐛 Bug Fixes:\n• Fixed Java version warnings\n• Improved download stability",
+  "forceUpdate": false
+}

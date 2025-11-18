@@ -5,10 +5,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/download_item.dart';
 import '../services/youtube_service.dart';
+import '../services/notification_service.dart';
 
 class DownloadProvider extends ChangeNotifier {
   final YouTubeService _youtubeService = YouTubeService();
+  final NotificationService _notificationService = NotificationService();
   final _uuid = const Uuid();
+
+  // For speed calculation
+  final Map<String, DateTime> _lastUpdateTime = {};
+  final Map<String, double> _lastProgress = {};
 
   final List<DownloadItem> _activeDownloads = [];
   List<DownloadItem> _downloadHistory = [];
@@ -64,6 +70,10 @@ class DownloadProvider extends ChangeNotifier {
   }
 
   Future<void> _performDownload(DownloadItem item) async {
+    // Initialize tracking for speed calculation
+    _lastUpdateTime[item.id] = DateTime.now();
+    _lastProgress[item.id] = 0;
+
     try {
       String filePath;
 
@@ -89,6 +99,7 @@ class DownloadProvider extends ChangeNotifier {
         status: 'completed',
         progress: 100,
         endTime: DateTime.now(),
+        filePath: filePath,
       );
       completedItem.fileName = filePath.split('/').last;
 
@@ -96,8 +107,18 @@ class DownloadProvider extends ChangeNotifier {
       _downloadHistory.insert(0, completedItem);
       _saveHistory();
 
+      // Show completion notification
+      await _notificationService.showDownloadComplete(
+        id: item.id,
+        title: item.title,
+      );
+
       _statusMessage = 'Download completed: ${item.title}';
       notifyListeners();
+
+      // Cleanup tracking
+      _lastUpdateTime.remove(item.id);
+      _lastProgress.remove(item.id);
     } catch (e) {
       // Download failed
       final failedItem = item.copyWith(
@@ -110,21 +131,81 @@ class DownloadProvider extends ChangeNotifier {
       _downloadHistory.insert(0, failedItem);
       _saveHistory();
 
+      // Show failure notification
+      await _notificationService.showDownloadFailed(
+        id: item.id,
+        title: item.title,
+        error: e.toString(),
+      );
+
       _statusMessage = 'Download failed: ${item.title}';
       notifyListeners();
+
+      // Cleanup tracking
+      _lastUpdateTime.remove(item.id);
+      _lastProgress.remove(item.id);
     }
   }
 
   void _updateDownloadProgress(String downloadId, double progress) {
     final index = _activeDownloads.indexWhere((d) => d.id == downloadId);
-    if (index != -1) {
-      _activeDownloads[index].progress = progress;
-      notifyListeners();
+    if (index == -1) return;
+
+    final item = _activeDownloads[index];
+    final now = DateTime.now();
+
+    // Calculate speed and ETA
+    double? speed;
+    int? eta;
+
+    if (_lastUpdateTime.containsKey(downloadId) &&
+        _lastProgress.containsKey(downloadId)) {
+      final timeDiff =
+          now.difference(_lastUpdateTime[downloadId]!).inMilliseconds;
+      if (timeDiff > 0) {
+        final progressDiff = progress - _lastProgress[downloadId]!;
+        // Speed in KB/s (assuming 1% = some KB, this is approximate)
+        speed = (progressDiff / timeDiff) * 1000; // Convert to per second
+
+        // Calculate ETA
+        if (progress > 0 && progress < 100) {
+          final remainingProgress = 100 - progress;
+          eta =
+              ((remainingProgress / progressDiff) * (timeDiff / 1000)).round();
+        }
+      }
     }
+
+    // Update tracking
+    _lastUpdateTime[downloadId] = now;
+    _lastProgress[downloadId] = progress;
+
+    // Update item
+    _activeDownloads[index] = item.copyWith(
+      progress: progress,
+      downloadSpeed: speed,
+      estimatedTimeRemaining: eta,
+    );
+
+    // Show notification (throttle to every 5%)
+    if (progress.toInt() % 5 == 0) {
+      _notificationService.showDownloadProgress(
+        id: downloadId,
+        title: item.title,
+        progress: progress.toInt(),
+        speed: speed != null ? item.formattedSpeed : null,
+        eta: eta != null ? item.formattedETA : null,
+      );
+    }
+
+    notifyListeners();
   }
 
   Future<void> cancelDownload(String downloadId) async {
     _activeDownloads.removeWhere((d) => d.id == downloadId);
+    await _notificationService.cancelNotification(downloadId);
+    _lastUpdateTime.remove(downloadId);
+    _lastProgress.remove(downloadId);
     _statusMessage = 'Download cancelled';
     notifyListeners();
   }

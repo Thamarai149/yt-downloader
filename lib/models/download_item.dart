@@ -12,6 +12,9 @@ class DownloadItem {
   String? fileName;
   int? fileSize;
   String? error;
+  double? downloadSpeed; // KB/s
+  int? estimatedTimeRemaining; // seconds
+  String? filePath;
 
   DownloadItem({
     required this.id,
@@ -27,6 +30,9 @@ class DownloadItem {
     this.fileName,
     this.fileSize,
     this.error,
+    this.downloadSpeed,
+    this.estimatedTimeRemaining,
+    this.filePath,
   });
 
   factory DownloadItem.fromJson(Map<String, dynamic> json) {
@@ -44,6 +50,9 @@ class DownloadItem {
       fileName: json['fileName'],
       fileSize: json['fileSize'],
       error: json['error'],
+      downloadSpeed: json['downloadSpeed']?.toDouble(),
+      estimatedTimeRemaining: json['estimatedTimeRemaining'],
+      filePath: json['filePath'],
     );
   }
 
@@ -62,6 +71,9 @@ class DownloadItem {
       'fileName': fileName,
       'fileSize': fileSize,
       'error': error,
+      'downloadSpeed': downloadSpeed,
+      'estimatedTimeRemaining': estimatedTimeRemaining,
+      'filePath': filePath,
     };
   }
 
@@ -70,6 +82,9 @@ class DownloadItem {
     double? progress,
     DateTime? endTime,
     String? error,
+    double? downloadSpeed,
+    int? estimatedTimeRemaining,
+    String? filePath,
   }) {
     return DownloadItem(
       id: id,
@@ -85,6 +100,35 @@ class DownloadItem {
       fileName: fileName,
       fileSize: fileSize,
       error: error ?? this.error,
+      downloadSpeed: downloadSpeed ?? this.downloadSpeed,
+      estimatedTimeRemaining:
+          estimatedTimeRemaining ?? this.estimatedTimeRemaining,
+      filePath: filePath ?? this.filePath,
     );
+  }
+
+  // Helper method to format download speed
+  String get formattedSpeed {
+    if (downloadSpeed == null) return '';
+    if (downloadSpeed! < 1024) {
+      return '${downloadSpeed!.toStringAsFixed(1)} KB/s';
+    } else {
+      return '${(downloadSpeed! / 1024).toStringAsFixed(2)} MB/s';
+    }
+  }
+
+  // Helper method to format ETA
+  String get formattedETA {
+    if (estimatedTimeRemaining == null) return '';
+    final seconds = estimatedTimeRemaining!;
+    if (seconds < 60) {
+      return '${seconds}s';
+    } else if (seconds < 3600) {
+      return '${(seconds / 60).floor()}m ${seconds % 60}s';
+    } else {
+      final hours = (seconds / 3600).floor();
+      final minutes = ((seconds % 3600) / 60).floor();
+      return '${hours}h ${minutes}m';
+    }
   }
 }

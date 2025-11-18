@@ -5,6 +5,7 @@ import 'providers/download_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/search_provider.dart';
 import 'providers/batch_provider.dart';
+import 'providers/background_provider.dart';
 import 'screens/home_screen.dart';
 
 void main() {
@@ -22,6 +23,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DownloadProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => SearchProvider()),
+        ChangeNotifierProvider(create: (_) => BackgroundProvider()),
         ChangeNotifierProxyProvider<DownloadProvider, BatchProvider>(
           create: (context) => BatchProvider(context.read<DownloadProvider>()),
           update: (context, downloadProvider, previous) =>

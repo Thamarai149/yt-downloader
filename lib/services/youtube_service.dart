@@ -4,25 +4,33 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import '../models/video_info.dart';
 import '../models/search_result.dart' as models;
+import 'settings_service.dart';
 
 class YouTubeService {
   final yt.YoutubeExplode _ytExplode = yt.YoutubeExplode();
+  final SettingsService _settingsService = SettingsService();
 
   // Get video information
   Future<VideoInfo> getVideoInfo(String url) async {
     try {
       final video = await _ytExplode.videos.get(url);
-      final manifest =
-          await _ytExplode.videos.streamsClient.getManifest(video.id);
+      final manifest = await _ytExplode.videos.streamsClient.getManifest(
+        video.id,
+      );
 
       // Get available qualities
-      final videoQualities = manifest.muxed
-          .map((s) =>
-              int.tryParse(s.qualityLabel.replaceAll(RegExp(r'[^0-9]'), '')) ??
-              0)
-          .toSet()
-          .toList()
-        ..sort((a, b) => b.compareTo(a));
+      final videoQualities =
+          manifest.muxed
+              .map(
+                (s) =>
+                    int.tryParse(
+                      s.qualityLabel.replaceAll(RegExp(r'[^0-9]'), ''),
+                    ) ??
+                    0,
+              )
+              .toSet()
+              .toList()
+            ..sort((a, b) => b.compareTo(a));
 
       return VideoInfo(
         title: video.title,
@@ -41,8 +49,10 @@ class YouTubeService {
   }
 
   // Search videos
-  Future<List<models.SearchResult>> searchVideos(String query,
-      {int limit = 20}) async {
+  Future<List<models.SearchResult>> searchVideos(
+    String query, {
+    int limit = 20,
+  }) async {
     try {
       final searchList = await _ytExplode.search.search(query);
       final results = <models.SearchResult>[];
@@ -58,15 +68,17 @@ class YouTubeService {
             durationSeconds = video.duration!.inSeconds;
           }
 
-          results.add(models.SearchResult(
-            id: video.id.value,
-            title: video.title,
-            url: 'https://www.youtube.com/watch?v=${video.id.value}',
-            duration: durationSeconds,
-            thumbnail: thumbnailUrl,
-            uploader: video.author,
-            viewCount: 0, // Not available in search
-          ));
+          results.add(
+            models.SearchResult(
+              id: video.id.value,
+              title: video.title,
+              url: 'https://www.youtube.com/watch?v=${video.id.value}',
+              duration: durationSeconds,
+              thumbnail: thumbnailUrl,
+              uploader: video.author,
+              viewCount: 0, // Not available in search
+            ),
+          );
         }
       }
 
@@ -84,8 +96,9 @@ class YouTubeService {
   }) async {
     try {
       final video = await _ytExplode.videos.get(url);
-      final manifest =
-          await _ytExplode.videos.streamsClient.getManifest(video.id);
+      final manifest = await _ytExplode.videos.streamsClient.getManifest(
+        video.id,
+      );
 
       // Get stream based on quality
       yt.StreamInfo streamInfo;
@@ -94,7 +107,8 @@ class YouTubeService {
       } else {
         final qualityNum =
             int.tryParse(quality.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-        streamInfo = manifest.muxed
+        streamInfo =
+            manifest.muxed
                 .where((s) => s.qualityLabel.contains(qualityNum.toString()))
                 .firstOrNull ??
             manifest.muxed.withHighestBitrate();
@@ -102,8 +116,9 @@ class YouTubeService {
 
       // Get download directory
       final dir = await _getDownloadDirectory();
-      final fileName =
-          _sanitizeFileName('${video.title}.${streamInfo.container.name}');
+      final fileName = _sanitizeFileName(
+        '${video.title}.${streamInfo.container.name}',
+      );
       final file = File('${dir.path}/$fileName');
 
       // Download with progress
@@ -127,16 +142,18 @@ class YouTubeService {
   }) async {
     try {
       final video = await _ytExplode.videos.get(url);
-      final manifest =
-          await _ytExplode.videos.streamsClient.getManifest(video.id);
+      final manifest = await _ytExplode.videos.streamsClient.getManifest(
+        video.id,
+      );
 
       // Get audio stream
       final streamInfo = manifest.audioOnly.withHighestBitrate();
 
       // Get download directory
       final dir = await _getDownloadDirectory();
-      final fileName =
-          _sanitizeFileName('${video.title}.${streamInfo.container.name}');
+      final fileName = _sanitizeFileName(
+        '${video.title}.${streamInfo.container.name}',
+      );
       final file = File('${dir.path}/$fileName');
 
       // Download with progress
@@ -157,8 +174,10 @@ class YouTubeService {
   Future<Map<String, dynamic>> getPlaylistInfo(String url) async {
     try {
       final playlist = await _ytExplode.playlists.get(url);
-      final videoList =
-          await _ytExplode.playlists.getVideos(playlist.id).take(50).toList();
+      final videoList = await _ytExplode.playlists
+          .getVideos(playlist.id)
+          .take(50)
+          .toList();
 
       return {
         'title': playlist.title,
@@ -187,8 +206,9 @@ class YouTubeService {
     int totalBytes,
     Function(double) onProgress,
   ) async {
-    final request =
-        await http.Client().send(http.Request('GET', Uri.parse(url)));
+    final request = await http.Client().send(
+      http.Request('GET', Uri.parse(url)),
+    );
     final output = file.openWrite();
     int downloadedBytes = 0;
 
@@ -204,6 +224,16 @@ class YouTubeService {
 
   // Helper: Get download directory
   Future<Directory> _getDownloadDirectory() async {
+    // Check if user has set a custom download path
+    final customPath = await _settingsService.getDownloadPath();
+    if (customPath != null && customPath.isNotEmpty) {
+      final customDir = Directory(customPath);
+      if (await customDir.exists()) {
+        return customDir;
+      }
+    }
+
+    // Use default path
     if (Platform.isAndroid) {
       // Try to get external storage directory
       final dir = await getExternalStorageDirectory();

@@ -15,9 +15,36 @@
                 <img src="assets/icons/app_icon.png" alt="App Icon" width="40" height="40">
                 <h1>YouTube Downloader Pro</h1>
             </div>
-            <div class="stats">
-                <span id="activeDownloads">0 Active</span>
-                <span id="completedDownloads">0 Completed</span>
+            <div class="header-actions">
+                <div class="stats">
+                    <span id="queueCount">0 Queue</span>
+                    <span id="activeDownloads">0 Active</span>
+                    <span id="completedDownloads">0 Completed</span>
+                </div>
+                <div class="header-buttons">
+                    <button id="playlistBtn" class="icon-btn" title="Playlist Downloader">
+                        <img src="assets/icons/queue.svg" alt="Playlist" width="24" height="24">
+                    </button>
+                    <button id="themeToggle" class="icon-btn" title="Toggle Theme">
+                        <svg id="themeIcon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="5"/>
+                            <line x1="12" y1="1" x2="12" y2="3"/>
+                            <line x1="12" y1="21" x2="12" y2="23"/>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                            <line x1="1" y1="12" x2="3" y2="12"/>
+                            <line x1="21" y1="12" x2="23" y2="12"/>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                        </svg>
+                    </button>
+                    <button id="historyBtn" class="icon-btn" title="Download History">
+                        <img src="assets/icons/history.svg" alt="History" width="24" height="24">
+                    </button>
+                    <button id="settingsBtn" class="icon-btn" title="Settings">
+                        <img src="assets/icons/settings.svg" alt="Settings" width="24" height="24">
+                    </button>
+                </div>
             </div>
         </header>
 
@@ -66,7 +93,7 @@
                     </div>
 
                     <div class="option-group" id="qualityGroup">
-                        <label>Quality:</label>
+                        <label id="qualityLabel">Quality:</label>
                         <select id="qualitySelect" class="select-input">
                             <option value="2160">4K (2160p)</option>
                             <option value="1440">2K (1440p)</option>
@@ -77,16 +104,28 @@
                         </select>
                     </div>
 
-                    <button id="downloadBtn" class="btn btn-primary">
-                        <img src="assets/icons/download.svg" alt="Download" width="20" height="20">
-                        Download
-                    </button>
+                    <div class="button-group">
+                        <button id="addToQueueBtn" class="btn btn-secondary">
+                            <img src="assets/icons/queue.svg" alt="Queue" width="20" height="20">
+                            Add to Queue
+                        </button>
+                        <button id="downloadBtn" class="btn btn-primary">
+                            <img src="assets/icons/download.svg" alt="Download" width="20" height="20">
+                            Download Now
+                        </button>
+                    </div>
                 </div>
             </section>
 
             <!-- Downloads List -->
             <section class="downloads-section">
-                <h2>Downloads</h2>
+                <div class="section-header">
+                    <h2>Downloads</h2>
+                    <button id="clearCompletedBtn" class="btn-text">
+                        <img src="assets/icons/delete.svg" alt="Clear" width="16" height="16">
+                        Clear Completed
+                    </button>
+                </div>
                 <div id="downloadsList" class="downloads-list">
                     <div class="empty-state">
                         <img src="assets/images/empty_state.png" alt="No downloads" width="120" height="120">
@@ -95,6 +134,248 @@
                 </div>
             </section>
         </main>
+
+        <!-- Queue Panel -->
+        <aside id="queuePanel" class="side-panel hidden">
+            <div class="panel-header">
+                <h3>
+                    <img src="assets/icons/queue.svg" alt="Queue" width="20" height="20">
+                    Download Queue
+                </h3>
+                <button id="closeQueueBtn" class="close-btn">&times;</button>
+            </div>
+            <div id="queueList" class="queue-list">
+                <div class="empty-state-small">
+                    <p>Queue is empty</p>
+                </div>
+            </div>
+            <div class="panel-footer">
+                <button id="startQueueBtn" class="btn btn-primary btn-block">
+                    <img src="assets/icons/play.svg" alt="Start" width="16" height="16">
+                    Start Queue
+                </button>
+            </div>
+        </aside>
+
+        <!-- History Panel -->
+        <aside id="historyPanel" class="side-panel hidden">
+            <div class="panel-header">
+                <h3>
+                    <img src="assets/icons/history.svg" alt="History" width="20" height="20">
+                    Download History
+                </h3>
+                <button id="closeHistoryBtn" class="close-btn">&times;</button>
+            </div>
+            <div id="historyList" class="history-list">
+                <div class="empty-state-small">
+                    <p>No history yet</p>
+                </div>
+            </div>
+            <div class="panel-footer">
+                <button id="clearHistoryBtn" class="btn btn-secondary btn-block">
+                    <img src="assets/icons/delete.svg" alt="Clear" width="16" height="16">
+                    Clear History
+                </button>
+            </div>
+        </aside>
+
+        <!-- Settings Panel -->
+        <aside id="settingsPanel" class="side-panel hidden">
+            <div class="panel-header">
+                <h3>
+                    <img src="assets/icons/settings.svg" alt="Settings" width="20" height="20">
+                    Settings
+                </h3>
+                <button id="closeSettingsBtn" class="close-btn">&times;</button>
+            </div>
+            <div class="settings-content">
+                <div class="setting-group">
+                    <label>Default Video Quality</label>
+                    <select id="defaultQuality" class="select-input">
+                        <option value="2160">4K (2160p)</option>
+                        <option value="1440">2K (1440p)</option>
+                        <option value="1080" selected>1080p</option>
+                        <option value="720">720p</option>
+                        <option value="480">480p</option>
+                        <option value="360">360p</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label>Default Audio Quality</label>
+                    <select id="defaultAudioQuality" class="select-input">
+                        <option value="320">320 kbps (Best)</option>
+                        <option value="256" selected>256 kbps (High)</option>
+                        <option value="192">192 kbps (Medium)</option>
+                        <option value="128">128 kbps (Standard)</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label>Default Type</label>
+                    <select id="defaultType" class="select-input">
+                        <option value="video" selected>Video</option>
+                        <option value="audio">Audio Only</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="autoDownload">
+                        <span>Auto-download after search</span>
+                    </label>
+                </div>
+                <div class="setting-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="showNotifications" checked>
+                        <span>Show notifications</span>
+                    </label>
+                </div>
+                <div class="setting-group">
+                    <label>Theme</label>
+                    <select id="themeSelect" class="select-input">
+                        <option value="dark">Dark Mode</option>
+                        <option value="light">Light Mode</option>
+                        <option value="auto">Auto (System)</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label>Download Path</label>
+                    <input type="text" id="downloadPath" class="text-input" placeholder="C:\Users\YourName\Downloads">
+                    <small class="setting-hint">Server-side download location</small>
+                </div>
+                <div class="setting-group">
+                    <label>Background Wallpaper</label>
+                    <div class="wallpaper-options">
+                        <button type="button" class="btn btn-secondary btn-small" id="uploadWallpaper">
+                            <img src="assets/icons/download.svg" alt="Upload" width="16" height="16">
+                            Upload Image
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-small" id="removeWallpaper">
+                            <img src="assets/icons/delete.svg" alt="Remove" width="16" height="16">
+                            Remove
+                        </button>
+                    </div>
+                    <input type="file" id="wallpaperInput" accept="image/*" style="display: none;">
+                    <div id="wallpaperPreview" class="wallpaper-preview hidden">
+                        <img id="wallpaperImg" src="" alt="Wallpaper Preview">
+                    </div>
+                </div>
+                <div class="setting-group">
+                    <label>Wallpaper Opacity</label>
+                    <input type="range" id="wallpaperOpacity" min="0" max="100" value="20" class="slider">
+                    <span id="opacityValue" class="slider-value">20%</span>
+                </div>
+                <div class="setting-group">
+                    <label>Wallpaper Blur</label>
+                    <input type="range" id="wallpaperBlur" min="0" max="20" value="5" class="slider">
+                    <span id="blurValue" class="slider-value">5px</span>
+                </div>
+            </div>
+            <div class="panel-footer">
+                <button id="saveSettingsBtn" class="btn btn-primary btn-block">
+                    Save Settings
+                </button>
+            </div>
+        </aside>
+
+        <!-- Playlist Panel -->
+        <aside id="playlistPanel" class="side-panel hidden">
+            <div class="panel-header">
+                <h3>
+                    <img src="assets/icons/queue.svg" alt="Playlist" width="20" height="20">
+                    Playlist Downloader
+                </h3>
+                <button id="closePlaylistBtn" class="close-btn">&times;</button>
+            </div>
+            <div class="playlist-content">
+                <div class="setting-group">
+                    <label>Playlist URL</label>
+                    <input type="text" id="playlistUrl" class="text-input" placeholder="https://youtube.com/playlist?list=...">
+                </div>
+                <button id="loadPlaylistBtn" class="btn btn-primary">
+                    <img src="assets/icons/search.svg" alt="Load" width="16" height="16">
+                    Load Playlist
+                </button>
+                <div id="playlistInfo" class="playlist-info hidden">
+                    <h4 id="playlistTitle"></h4>
+                    <p id="playlistMeta"></p>
+                    <div id="playlistVideos" class="playlist-videos"></div>
+                </div>
+            </div>
+            <div class="panel-footer">
+                <button id="downloadAllBtn" class="btn btn-primary btn-block" disabled>
+                    <img src="assets/icons/download.svg" alt="Download" width="16" height="16">
+                    Download All Selected
+                </button>
+            </div>
+        </aside>
+
+        <!-- Scheduler Panel -->
+        <aside id="schedulerPanel" class="side-panel hidden">
+            <div class="panel-header">
+                <h3>
+                    <img src="assets/icons/info.svg" alt="Schedule" width="20" height="20">
+                    Schedule Download
+                </h3>
+                <button id="closeSchedulerBtn" class="close-btn">&times;</button>
+            </div>
+            <div class="scheduler-content">
+                <div class="setting-group">
+                    <label>Video URL</label>
+                    <input type="text" id="scheduleUrl" class="text-input" placeholder="YouTube URL">
+                </div>
+                <div class="setting-group">
+                    <label>Schedule Time</label>
+                    <input type="datetime-local" id="scheduleTime" class="text-input">
+                </div>
+                <div class="setting-group">
+                    <label>Type</label>
+                    <select id="scheduleType" class="select-input">
+                        <option value="video">Video</option>
+                        <option value="audio">Audio Only</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label>Quality</label>
+                    <select id="scheduleQuality" class="select-input">
+                        <option value="1080">1080p</option>
+                        <option value="720">720p</option>
+                        <option value="480">480p</option>
+                    </select>
+                </div>
+                <div id="scheduledList" class="scheduled-list">
+                    <h4>Scheduled Downloads</h4>
+                    <div id="scheduledItems"></div>
+                </div>
+            </div>
+            <div class="panel-footer">
+                <button id="addScheduleBtn" class="btn btn-primary btn-block">
+                    Add to Schedule
+                </button>
+            </div>
+        </aside>
+
+        <!-- Overlay -->
+        <div id="overlay" class="overlay hidden"></div>
+    </div>
+
+    <!-- Floating Action Button -->
+    <div class="fab-container">
+        <button id="fabBtn" class="fab" title="Quick Actions">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+        </button>
+        <div id="fabMenu" class="fab-menu hidden">
+            <button class="fab-item" id="fabSchedule" title="Schedule Download">
+                <img src="assets/icons/info.svg" alt="Schedule" width="20" height="20">
+            </button>
+            <button class="fab-item" id="fabPlaylist" title="Playlist">
+                <img src="assets/icons/queue.svg" alt="Playlist" width="20" height="20">
+            </button>
+            <button class="fab-item" id="fabShare" title="Share">
+                <img src="assets/icons/share.svg" alt="Share" width="20" height="20">
+            </button>
+        </div>
     </div>
 
     <!-- Toast Notifications -->

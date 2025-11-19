@@ -1,0 +1,12 @@
+{
+  "name": "youtube-downloader-frontend",
+  "version": "1.0.0",
+  "description": "YouTube Downloader Web Frontend",
+  "scripts": {
+    "dev": "npx http-server -p 8080 -c-1 --cors",
+    "start": "npx http-server -p 8080"
+  },
+  "keywords": ["youtube", "downloader", "frontend"],
+  "author": "",
+  "license": "MIT"
+}

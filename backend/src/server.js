@@ -84,19 +84,8 @@ app.use(requestLogger);
 // Initialize services
 initializeServices(io);
 
-// Serve static files from web-frontend
-const frontendPath = path.join(__dirname, '../../web-frontend');
-app.use(express.static(frontendPath));
-
 // Routes
 app.use('/api', routes);
-
-// Serve index.html for all non-API routes (SPA support)
-app.get('*', (req, res) => {
-  if (!req.path.startsWith('/api')) {
-    res.sendFile(path.join(frontendPath, 'index.html'));
-  }
-});
 
 // Error handling
 app.use(errorHandler);
@@ -113,8 +102,9 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 
 httpServer.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Backend API running on port ${PORT}`);
   console.log(`📁 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌐 API Endpoint: http://localhost:${PORT}/api`);
 });
 
 export { io };

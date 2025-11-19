@@ -84,8 +84,8 @@ app.use(requestLogger);
 // Initialize services
 initializeServices(io);
 
-// Serve static files from wb-frontend
-const frontendPath = path.join(__dirname, '../../wb-frontend');
+// Serve static files from web-frontend
+const frontendPath = path.join(__dirname, '../../web-frontend');
 app.use(express.static(frontendPath));
 
 // Routes

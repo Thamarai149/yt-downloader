@@ -5,10 +5,15 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/logger.js';
 import routes from './routes/index.js';
 import { initializeServices } from './services/index.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -79,8 +84,19 @@ app.use(requestLogger);
 // Initialize services
 initializeServices(io);
 
+// Serve static files from web-frontend
+const frontendPath = path.join(__dirname, '../../web-frontend');
+app.use(express.static(frontendPath));
+
 // Routes
 app.use('/api', routes);
+
+// Serve index.html for all non-API routes (SPA support)
+app.get('*', (req, res) => {
+  if (!req.path.startsWith('/api')) {
+    res.sendFile(path.join(frontendPath, 'index.html'));
+  }
+});
 
 // Error handling
 app.use(errorHandler);
@@ -94,7 +110,7 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 httpServer.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);

@@ -1,90 +1,42 @@
-# Dependencies
+# Node modules
 node_modules/
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
-
-# Build outputs
-dist/
-build/
-*.local
+backend/node_modules/
 
 # Environment variables
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+backend/.env
+
+# Downloads
+backend/downloads/
+downloads/
 
 # Logs
-logs/
 *.log
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-# Editor directories and files
-.vscode/
-.idea/
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Downloaded files
-backend/downloads/*
-!backend/downloads/.gitkeep
+logs/
 
 # OS files
-Thumbs.db
 .DS_Store
+Thumbs.db
+desktop.ini
 
-# Testing
-coverage/
-.nyc_output/
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
 # Temporary files
 *.tmp
-*.temp
-.cache/
+temp/
+tmp/
 
-# Production
-*.tgz
+# Build files
+dist/
+build/
 
-# Electron
-dist-electron/
-out/
-*.exe
-*.dmg
-*.AppImage
-*.deb
-*.rpm
-
-# Binaries
-binaries/*.exe
-binaries/yt-dlp
-binaries/ffmpeg
-!binaries/README.md
-
-# Build resources (optional - uncomment if you want to ignore icons)
-# build-resources/*.ico
-# build-resources/*.icns
-# build-resources/*.png
-# build-resources/*.bmp
-
-# Code signing certificates (NEVER commit these!)
-*.pfx
-*.p12
-*.cer
-*.crt
-*.pem
-certificate.*
-*-certificate.*
-electron-builder-signing.json
-
-# Sensitive configuration
-.env.signing
+# Package manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

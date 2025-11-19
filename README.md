@@ -1,252 +1,288 @@
-# 🎥 YouTube Downloader Pro
+# 🌐 YouTube Downloader Pro - Web Application
 
-A modern, feature-rich YouTube video downloader with beautiful UI for Windows and Android.
-
-## ⚡ Quick Start
-
-### 🖥️ Windows Desktop (Recommended)
-```bash
-run-all.bat
-```
-Double-click and you're done!
-
-### 📱 Android APK
-```bash
-fix-android-build.bat
-```
-Builds APK automatically!
+A modern, full-stack web application for downloading YouTube videos with real-time progress tracking.
 
 ## ✨ Features
 
-- 📹 **Download Videos** - 4K, 1080p, 720p, 480p, 360p, 240p
-- 🎵 **Download Audio** - MP3 format
-- 🔍 **Search YouTube** - With thumbnails and previews
-- 📦 **Batch Downloads** - Multiple videos at once
-- 📊 **Real-time Progress** - Live download tracking
-- 📜 **Download History** - Track all downloads
-- 🌓 **Dark/Light Themes** - Beautiful modern UI
-- ⚙️ **Settings** - Customize everything
+- 🎥 **Video Downloads**: 4K, 2K, 1080p, 720p, 480p, 360p
+- 🎵 **Audio Downloads**: MP3 format, highest quality
+- 📊 **Real-time Progress**: Live download tracking via WebSocket
+- 🎨 **Modern UI**: Dark theme, responsive design
+- 📱 **Mobile-Friendly**: Works on any device
+- ⚡ **Fast**: No framework overhead, pure JavaScript
+- 🔧 **FFmpeg Integration**: Automatic merging for 2K/4K videos
 
-## 🚀 Platforms
+## 🚀 Quick Start
 
-| Platform | Status | Command |
-|----------|--------|---------|
-| Windows Desktop | ✅ Fully Working | `run-all.bat` |
-| Android APK | ✅ Fixed & Ready | `fix-android-build.bat` |
-| Web | ⚠️ CORS Issues | Use desktop instead |
+### 1. Install Dependencies
 
-## 📦 Tech Stack
-
-### Frontend (Flutter)
-- **Framework:** Flutter 3.35.6
-- **State Management:** Provider
-- **HTTP Client:** Dio
-- **WebSocket:** web_socket_channel
-- **UI:** Material Design 3
-
-### Backend (Node.js)
-- **Runtime:** Node.js 18+
-- **Framework:** Express
-- **Real-time:** Socket.IO
-- **Downloader:** youtube-dl-exec
-- **Validation:** Joi
-
-## 🔧 Requirements
-
-### Development
-- Flutter SDK 3.0+
-- Node.js 18+
-- Android SDK (for Android builds)
-- Visual Studio Build Tools (for Windows builds)
-
-### Runtime
-- Windows 10/11 (for desktop)
-- Android 5.0+ (for mobile)
-- Internet connection
-
-## 📖 Documentation
-
-| Document | Description |
-|----------|-------------|
-| [START_HERE.md](START_HERE.md) | 👈 **Start here!** |
-| [BUILD_SUCCESS.md](BUILD_SUCCESS.md) | Android build guide |
-| [COMPLETE_GUIDE.md](COMPLETE_GUIDE.md) | Full documentation |
-| [MINIMAL_BUILD.md](MINIMAL_BUILD.md) | Package details |
-| [FIXES_APPLIED.md](FIXES_APPLIED.md) | Fix history |
-| [QUICK_REFERENCE.md](QUICK_REFERENCE.md) | Command reference |
-
-## 🎯 Installation
-
-### Windows Desktop
-
-1. **Start everything:**
-   ```bash
-   run-all.bat
-   ```
-
-2. **Or run separately:**
-   ```bash
-   # Terminal 1 - Backend
-   cd backend
-   npm run dev
-   
-   # Terminal 2 - Flutter
-   flutter run -d windows
-   ```
-
-### Android
-
-1. **Build APK:**
-   ```bash
-   fix-android-build.bat
-   ```
-
-2. **Install:**
-   - Transfer `build\app\outputs\flutter-apk\app-release.apk` to device
-   - Enable "Unknown Sources"
-   - Install APK
-
-3. **Configure:**
-   - Start backend on PC
-   - Set backend URL in app settings
-   - For emulator: `http://10.0.2.2:3001`
-   - For device: `http://YOUR_IP:3001`
-
-## 🐛 Troubleshooting
-
-### Build Fails
-```bash
-fix-android-build.bat
-```
-
-### Backend Won't Start
 ```bash
 cd backend
 npm install
-npm run dev
 ```
 
-### Can't Connect (Android)
-- Emulator: Use `http://10.0.2.2:3001`
-- Device: Use your PC's IP address
-- Check firewall allows Node.js
+### 2. Install FFmpeg (Required for 2K/4K)
 
-### Port Already in Use
+**Windows (Chocolatey):**
 ```bash
-taskkill /F /IM node.exe
+choco install ffmpeg
 ```
 
-## 📊 Project Structure
+**Windows (Manual):**
+- Download from: https://www.gyan.dev/ffmpeg/builds/
+- Extract and add to PATH
+
+**Mac:**
+```bash
+brew install ffmpeg
+```
+
+**Linux:**
+```bash
+sudo apt install ffmpeg
+```
+
+### 3. Start the Server
+
+**Quick Start:**
+```bash
+start-web-app.bat
+```
+
+**Or manually:**
+```bash
+cd backend
+npm start
+```
+
+### 4. Open in Browser
+
+Navigate to: **http://localhost:3000**
+
+## 📁 Project Structure
 
 ```
-ytdownloader/
-├── lib/                    # Flutter app
-│   ├── models/            # Data models
-│   ├── providers/         # State management
-│   ├── screens/           # UI screens
-│   ├── services/          # API & WebSocket
-│   └── widgets/           # Reusable components
-│
-├── backend/               # Node.js backend
+youtube-downloader-pro/
+├── backend/                   # Node.js backend
 │   ├── src/
-│   │   ├── routes/       # API routes
-│   │   ├── services/     # Business logic
-│   │   └── server.js     # Entry point
+│   │   ├── services/         # Download service with FFmpeg
+│   │   ├── routes/           # API endpoints
+│   │   ├── middleware/       # Error handling, logging
+│   │   └── server.js         # Main server
+│   ├── downloads/            # Downloaded files
 │   └── package.json
 │
-├── android/              # Android config
-├── windows/              # Windows config
+├── web-frontend/             # Web interface
+│   ├── index.html           # Main page
+│   ├── styles.css           # Dark theme styling
+│   └── app.js               # Frontend logic
 │
-├── run-all.bat          # Start everything
-├── fix-android-build.bat # Fix & build Android
-└── README.md            # This file
+├── start-web-app.bat        # Quick start script
+└── README.md                # This file
 ```
 
-## 🎨 Screenshots
+## 🎯 How It Works
 
-### Windows Desktop
-- Modern, clean interface
-- Real-time progress tracking
-- Dark/Light theme support
+### Download Quality Strategy:
 
-### Android
-- Mobile-optimized UI
-- Touch-friendly controls
-- Responsive design
+- **240p - 1080p**: Downloads single file (video+audio combined)
+- **2K (1440p)**: Downloads video + audio separately, merges with FFmpeg
+- **4K (2160p)**: Downloads video + audio separately, merges with FFmpeg
 
-## 🔐 Permissions
+### Technology Stack:
 
-### Windows
-- No special permissions needed
+**Frontend:**
+- HTML5, CSS3, JavaScript ES6+
+- Socket.IO client for real-time updates
+- Fetch API for HTTP requests
 
-### Android
-- **Internet** - Download videos
-- **Storage** - Save files
-- **Network State** - Check connectivity
+**Backend:**
+- Node.js + Express
+- Socket.IO for WebSocket communication
+- youtube-dl-exec for video downloads
+- FFmpeg for video/audio merging
 
-## 🚧 Known Issues
+## 📡 API Endpoints
 
-### Fixed ✅
-- ✅ Android build errors (flutter_local_notifications)
-- ✅ Android build errors (file_picker)
-- ✅ CORS issues (use Windows desktop)
-- ✅ Download queue not showing
-- ✅ Progress not updating
+### POST `/api/video/info`
+Get video information
+```json
+{
+  "url": "https://youtube.com/watch?v=..."
+}
+```
 
-### Limitations
-- ⚠️ Web version has CORS issues (use desktop)
-- ⚠️ No system notifications on Android (in-app works)
-- ⚠️ No custom download path picker (uses default)
+### POST `/api/download/start`
+Start download
+```json
+{
+  "url": "https://youtube.com/watch?v=...",
+  "type": "video",
+  "quality": "1080p"
+}
+```
+
+### GET `/api/download/active`
+Get active downloads
+
+### GET `/api/download/history`
+Get download history
+
+## 🌐 Access from Other Devices
+
+### Local Network Access:
+
+1. Start the server on your PC
+2. Find your IP address:
+   ```bash
+   ipconfig  # Windows
+   ifconfig  # Mac/Linux
+   ```
+3. On other devices, open: `http://YOUR_IP:3000`
+
+## 🔧 Configuration
+
+Create `backend/.env` file:
+```env
+PORT=3000
+NODE_ENV=development
+DOWNLOAD_PATH=./downloads
+```
+
+## 🎨 Customization
+
+### Change Theme Colors
+
+Edit `web-frontend/styles.css`:
+```css
+:root {
+    --primary: #FF0000;        /* Red */
+    --secondary: #065FD4;      /* Blue */
+    --bg-primary: #0F0F0F;     /* Dark background */
+}
+```
+
+### Change Port
+
+Edit `backend/.env`:
+```env
+PORT=8080
+```
+
+Update `web-frontend/app.js`:
+```javascript
+const API_URL = 'http://localhost:8080';
+```
+
+## 🚀 Deployment
+
+### Heroku:
+```bash
+heroku create youtube-downloader-pro
+git push heroku main
+```
+
+### DigitalOcean/AWS:
+1. Deploy Node.js app
+2. Install FFmpeg on server
+3. Set environment variables
+4. Open port 3000
+
+### Docker:
+```dockerfile
+FROM node:18
+RUN apt-get update && apt-get install -y ffmpeg
+WORKDIR /app
+COPY backend/package*.json ./
+RUN npm install
+COPY backend/ ./
+COPY web-frontend/ ./web-frontend/
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+## 🐛 Troubleshooting
+
+### Port already in use:
+```bash
+# Windows
+netstat -ano | findstr :3000
+taskkill /PID <PID> /F
+
+# Mac/Linux
+lsof -ti:3000 | xargs kill
+```
+
+### FFmpeg not found:
+- Install FFmpeg and add to PATH
+- Restart terminal/server
+- Test: `ffmpeg -version`
+
+### CORS errors:
+- Check `CORS_ORIGIN` in `.env`
+- Ensure frontend URL matches backend
+
+### Socket.IO not connecting:
+- Check firewall settings
+- Verify server is running
+- Check browser console for errors
+
+## 📊 Performance
+
+- **Lightweight**: ~50KB frontend (HTML+CSS+JS)
+- **Fast**: No framework overhead
+- **Real-time**: WebSocket for instant updates
+- **Efficient**: Stream-based downloads
+
+## 🔒 Security
+
+- CORS configured for localhost
+- Helmet.js for security headers
+- Input validation
+- Safe file handling
+- No sensitive data stored
+
+## 🎯 Browser Support
+
+- ✅ Chrome/Edge (recommended)
+- ✅ Firefox
+- ✅ Safari
+- ✅ Opera
+- ✅ Mobile browsers
 
 ## 📝 License
 
-MIT License - See LICENSE file for details
+MIT License - feel free to use for personal or commercial projects
 
 ## 🤝 Contributing
 
-This is a personal project, but feel free to fork and modify!
+Contributions welcome! Feel free to:
+- Report bugs
+- Suggest features
+- Submit pull requests
 
-## 🆘 Support
+## 📞 Support
 
-Check documentation in this order:
-1. [START_HERE.md](START_HERE.md)
-2. [BUILD_SUCCESS.md](BUILD_SUCCESS.md)
-3. [COMPLETE_GUIDE.md](COMPLETE_GUIDE.md)
-4. [FIXES_APPLIED.md](FIXES_APPLIED.md)
+For issues or questions:
+- Check troubleshooting section
+- Review API documentation
+- Check browser console for errors
 
 ## 🎉 Credits
 
-- **Flutter** - UI framework
-- **youtube-dl** - Download engine
-- **Node.js** - Backend runtime
-- **Socket.IO** - Real-time updates
-
-## 📈 Version
-
-**Version:** 2.0.0
-**Build:** 1
-**Last Updated:** November 2025
-
-## 🎊 Status
-
-✅ **Production Ready**
-- Windows Desktop: Fully functional
-- Android APK: Build fixed, ready to use
-- Backend: Stable and tested
-- Documentation: Complete
+Built with:
+- [youtube-dl-exec](https://github.com/microlinkhq/youtube-dl-exec)
+- [Express](https://expressjs.com/)
+- [Socket.IO](https://socket.io/)
+- [FFmpeg](https://ffmpeg.org/)
 
 ---
 
-## 🚀 Get Started Now!
-
-**Windows:**
+**Start downloading now:**
 ```bash
-run-all.bat
+start-web-app.bat
 ```
 
-**Android:**
-```bash
-fix-android-build.bat
-```
+**Then open:** http://localhost:3000
 
-**Happy downloading!** 🎥📱✨
+Enjoy! 🚀✨

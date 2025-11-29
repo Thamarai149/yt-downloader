@@ -10,5 +10,6 @@ export const config = {
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW) * 60 * 1000 || 15 * 60 * 1000,
     max: parseInt(process.env.RATE_LIMIT_MAX) || 100
-  }
+  },
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN
 };

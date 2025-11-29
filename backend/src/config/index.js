@@ -1,5 +1,8 @@
 import os from 'os';
 import path from 'path';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 export const config = {
   port: process.env.PORT || 3001,

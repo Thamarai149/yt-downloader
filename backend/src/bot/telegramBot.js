@@ -8,6 +8,19 @@ export class TelegramBotService {
     this.videoInfoService = videoInfoService;
     this.bot = null;
     this.userDownloads = new Map();
+    this.urlCache = new Map(); // Store URLs with short IDs
+    this.urlIdCounter = 0;
+    this.lastErrorTime = null;
+    this.userHistory = new Map(); // Store download history per user
+    this.userSettings = new Map(); // Store user settings
+  }
+
+  getDefaultSettings() {
+    return {
+      autoDelete: false,
+      defaultQuality: 'best',
+      notifications: true
+    };
   }
 
   initialize() {
@@ -17,9 +30,39 @@ export class TelegramBotService {
     }
 
     try {
-      this.bot = new TelegramBot(config.telegramBotToken, { polling: true });
+      this.bot = new TelegramBot(config.telegramBotToken, { 
+        polling: {
+          interval: 2000,
+          autoStart: true,
+          params: {
+            timeout: 10
+          }
+        },
+        request: {
+          agentOptions: {
+            keepAlive: true,
+            family: 4 // Force IPv4 to avoid DNS issues
+          }
+        }
+      });
+      
+      // Handle polling errors gracefully
+      this.bot.on('polling_error', (error) => {
+        // Only log network errors once to avoid spam
+        if (error.code === 'EFATAL' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
+          if (!this.lastErrorTime || Date.now() - this.lastErrorTime > 30000) {
+            console.error('⚠️  Telegram connection issue:', error.code);
+            console.log('💡 The bot will keep trying to reconnect...');
+            this.lastErrorTime = Date.now();
+          }
+        } else {
+          console.error('⚠️  Telegram error:', error.message);
+        }
+      });
+      
       this.setupHandlers();
       console.log('🤖 Telegram bot initialized successfully');
+      console.log('🔄 Connecting to Telegram...');
     } catch (error) {
       console.error('Failed to initialize Telegram bot:', error.message);
     }
@@ -30,7 +73,7 @@ export class TelegramBotService {
     this.bot.onText(/\/start/, (msg) => {
       const chatId = msg.chat.id;
       this.bot.sendMessage(chatId, 
-        '👋 Welcome to VidFetch Bot!\n\n' +
+        '👋 Welcome to StreamedV3 Bot!\n\n' +
         'Send me a video URL and I\'ll help you download it.\n\n' +
         'Commands:\n' +
         '/help - Show help\n' +
@@ -43,15 +86,182 @@ export class TelegramBotService {
     this.bot.onText(/\/help/, (msg) => {
       const chatId = msg.chat.id;
       this.bot.sendMessage(chatId,
-        '📖 How to use:\n\n' +
-        '1. Send me a video URL (YouTube, etc.)\n' +
-        '2. Choose format (video/audio)\n' +
-        '3. Select quality\n' +
-        '4. Wait for download to complete\n\n' +
-        'Commands:\n' +
+        '📖 *How to use:*\n\n' +
+        '1️⃣ Send me a video URL (YouTube, etc.)\n' +
+        '2️⃣ Choose format (video/audio/subtitles)\n' +
+        '3️⃣ Select quality\n' +
+        '4️⃣ Wait for download to complete\n\n' +
+        '🎯 *Commands:*\n' +
         '/info <url> - Get video details\n' +
+        '/history - View download history\n' +
+        '/stats - View your statistics\n' +
+        '/clear - Clear history\n' +
+        '/search <query> - Search videos\n' +
+        '/playlist <url> - Download playlist\n' +
         '/cancel - Cancel current download\n' +
-        '/start - Show welcome message'
+        '/settings - Bot settings\n' +
+        '/about - About this bot',
+        { parse_mode: 'Markdown' }
+      );
+    });
+
+    // Search command
+    this.bot.onText(/\/search (.+)/, async (msg, match) => {
+      const chatId = msg.chat.id;
+      const query = match[1];
+      
+      try {
+        const statusMsg = await this.bot.sendMessage(chatId, `🔍 Searching for: "${query}"...`);
+        
+        const youtubedl = (await import('youtube-dl-exec')).default;
+        const results = await youtubedl(query, {
+          dumpSingleJson: true,
+          defaultSearch: 'ytsearch5',
+          noCheckCertificates: true,
+          noWarnings: true
+        });
+        
+        if (results.entries && results.entries.length > 0) {
+          const buttons = results.entries.map((video, idx) => {
+            const urlId = this.urlIdCounter++;
+            this.urlCache.set(urlId, { url: video.webpage_url, info: video });
+            return [{
+              text: `${idx + 1}. ${video.title.substring(0, 50)}...`,
+              callback_data: `search:${urlId}`
+            }];
+          });
+          
+          await this.bot.editMessageText(
+            `🔍 Search results for: "${query}"\n\nSelect a video:`,
+            {
+              chat_id: chatId,
+              message_id: statusMsg.message_id,
+              reply_markup: { inline_keyboard: buttons }
+            }
+          );
+        } else {
+          await this.bot.editMessageText(
+            `❌ No results found for: "${query}"`,
+            {
+              chat_id: chatId,
+              message_id: statusMsg.message_id
+            }
+          );
+        }
+      } catch (error) {
+        this.bot.sendMessage(chatId, `❌ Search failed: ${error.message}`);
+      }
+    });
+
+    // Settings command
+    this.bot.onText(/\/settings/, (msg) => {
+      const chatId = msg.chat.id;
+      const settings = this.userSettings.get(chatId) || this.getDefaultSettings();
+      
+      this.bot.sendMessage(chatId,
+        `⚙️ *Bot Settings:*\n\n` +
+        `Auto-delete files: ${settings.autoDelete ? '✅' : '❌'}\n` +
+        `Default quality: ${settings.defaultQuality}\n` +
+        `Notifications: ${settings.notifications ? '✅' : '❌'}\n\n` +
+        `Use buttons below to change settings:`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: settings.autoDelete ? '✅ Auto-delete ON' : '❌ Auto-delete OFF', callback_data: 'setting:autodelete' }
+              ],
+              [
+                { text: '🎬 Default: Best', callback_data: 'setting:quality:best' },
+                { text: '🎬 Default: 1080p', callback_data: 'setting:quality:1080' }
+              ],
+              [
+                { text: settings.notifications ? '🔔 Notifications ON' : '🔕 Notifications OFF', callback_data: 'setting:notifications' }
+              ]
+            ]
+          }
+        }
+      );
+    });
+
+    // About command
+    this.bot.onText(/\/about/, (msg) => {
+      const chatId = msg.chat.id;
+      this.bot.sendMessage(chatId,
+        '🤖 *StreamedV3 Bot*\n\n' +
+        '📥 Download videos from YouTube and other platforms\n' +
+        '🎵 Extract audio in high quality\n' +
+        '📝 Download subtitles\n' +
+        '🔍 Search and download\n' +
+        '📊 Track your download history\n\n' +
+        '💡 Powered by yt-dlp\n' +
+        '⚡ Fast and reliable\n\n' +
+        'Type /help for commands',
+        { parse_mode: 'Markdown' }
+      );
+    });
+
+    // History command
+    this.bot.onText(/\/history/, (msg) => {
+      const chatId = msg.chat.id;
+      const history = this.userHistory.get(chatId) || [];
+      
+      if (history.length === 0) {
+        this.bot.sendMessage(chatId, '📭 No download history yet.\n\nStart by sending me a video URL!');
+        return;
+      }
+      
+      const historyText = history.slice(-10).reverse().map((item) => {
+        const status = item.status === 'completed' ? '✅' : '❌';
+        const date = new Date(item.date).toLocaleDateString();
+        return `${status} ${item.title.substring(0, 40)}...\n   ${item.type} • ${item.quality} • ${date}`;
+      }).join('\n\n');
+      
+      this.bot.sendMessage(chatId, `📚 Your Recent Downloads (Last 10):\n\n${historyText}`);
+    });
+
+    // Stats command
+    this.bot.onText(/\/stats/, (msg) => {
+      const chatId = msg.chat.id;
+      const history = this.userHistory.get(chatId) || [];
+      
+      if (history.length === 0) {
+        this.bot.sendMessage(chatId, '📊 No statistics yet. Start downloading!');
+        return;
+      }
+      
+      const completed = history.filter(h => h.status === 'completed').length;
+      const failed = history.filter(h => h.status === 'failed').length;
+      const videos = history.filter(h => h.type === 'video').length;
+      const audios = history.filter(h => h.type === 'audio').length;
+      
+      this.bot.sendMessage(chatId,
+        `📊 Your Statistics:\n\n` +
+        `✅ Completed: ${completed}\n` +
+        `❌ Failed: ${failed}\n` +
+        `🎥 Videos: ${videos}\n` +
+        `🎵 Audios: ${audios}\n` +
+        `📦 Total: ${history.length}`
+      );
+    });
+
+    // Clear history command
+    this.bot.onText(/\/clear/, (msg) => {
+      const chatId = msg.chat.id;
+      this.userHistory.delete(chatId);
+      this.bot.sendMessage(chatId, '🗑️ History cleared!');
+    });
+
+    // Playlist command
+    this.bot.onText(/\/playlist (.+)/, async (msg, match) => {
+      const chatId = msg.chat.id;
+      const url = match[1];
+      
+      await this.bot.sendMessage(chatId, 
+        '🎬 Playlist detected!\n\n' +
+        '⚠️ Note: Playlist downloads may take a long time.\n' +
+        'Each video will be processed separately.\n\n' +
+        'Feature coming soon! For now, send individual video URLs.'
       );
     });
 
@@ -66,10 +276,10 @@ export class TelegramBotService {
         
         await this.bot.editMessageText(
           `📹 *${info.title}*\n\n` +
-          `👤 Channel: ${info.uploader}\n` +
-          `⏱️ Duration: ${this.formatDuration(info.duration)}\n` +
-          `👁️ Views: ${this.formatNumber(info.view_count)}\n` +
-          `📅 Upload: ${new Date(info.upload_date).toLocaleDateString()}\n\n` +
+          `👤 Channel: ${this.getUploader(info)}\n` +
+          `⏱️ Duration: ${this.formatDuration(info.duration || 0)}\n` +
+          `👁️ Views: ${this.formatNumber(info.viewCount || info.view_count || 0)}\n` +
+          `📅 Upload: ${this.formatUploadDate(info.uploadDate || info.upload_date)}\n\n` +
           `Send the URL to download!`,
           {
             chat_id: chatId,
@@ -123,19 +333,42 @@ export class TelegramBotService {
       // Get video info
       const info = await this.videoInfoService.getVideoInfo(url);
       
+      // Store URL with short ID
+      const urlId = this.urlIdCounter++;
+      this.urlCache.set(urlId, { url, info });
+      
+      // Send thumbnail if available
+      if (info.thumbnail) {
+        try {
+          const caption = `📹 *${info.title}*\n\n` +
+            `👤 ${this.getUploader(info)}\n` +
+            `⏱️ Duration: ${this.formatDuration(info.duration || 0)}\n` +
+            `👁️ Views: ${this.formatNumber(info.viewCount || info.view_count || 0)}\n` +
+            `� ${ this.formatUploadDate(info.upload_date)}`;
+          
+          await this.bot.sendPhoto(chatId, info.thumbnail, {
+            caption: caption,
+            parse_mode: 'Markdown'
+          });
+        } catch (photoError) {
+          console.log('Could not send thumbnail:', photoError.message);
+        }
+      }
+      
       // Show format selection
       await this.bot.editMessageText(
-        `📹 *${info.title}*\n\n` +
         `Choose download format:`,
         {
           chat_id: chatId,
           message_id: statusMsg.message_id,
-          parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
               [
-                { text: '🎥 Video', callback_data: `format:video:${url}` },
-                { text: '🎵 Audio', callback_data: `format:audio:${url}` }
+                { text: '🎥 Video', callback_data: `format:video:${urlId}` },
+                { text: '🎵 Audio', callback_data: `format:audio:${urlId}` }
+              ],
+              [
+                { text: '📝 Subtitles', callback_data: `format:subtitles:${urlId}` }
               ]
             ]
           }
@@ -151,25 +384,120 @@ export class TelegramBotService {
     const data = query.data;
 
     try {
-      if (data.startsWith('format:')) {
-        const [, type, url] = data.split(':');
-        const fullUrl = url + (data.split(':').slice(3).join(':') || '');
+      if (data.startsWith('search:')) {
+        const urlId = parseInt(data.split(':')[1]);
+        const cached = this.urlCache.get(urlId);
         
-        // Show quality selection
+        if (!cached) {
+          throw new Error('Search result expired. Please search again.');
+        }
+        
+        // Show format selection for search result
+        await this.bot.editMessageText(
+          `📹 *${cached.info.title}*\n\nChoose download format:`,
+          {
+            chat_id: chatId,
+            message_id: query.message.message_id,
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '🎥 Video', callback_data: `format:video:${urlId}` },
+                  { text: '🎵 Audio', callback_data: `format:audio:${urlId}` }
+                ],
+                [
+                  { text: '📝 Subtitles', callback_data: `format:subtitles:${urlId}` }
+                ]
+              ]
+            }
+          }
+        );
+      } else if (data.startsWith('setting:')) {
+        const parts = data.split(':');
+        const setting = parts[1];
+        
+        const settings = this.userSettings.get(chatId) || this.getDefaultSettings();
+        
+        if (setting === 'autodelete') {
+          settings.autoDelete = !settings.autoDelete;
+          this.userSettings.set(chatId, settings);
+          await this.bot.answerCallbackQuery(query.id, { 
+            text: `Auto-delete ${settings.autoDelete ? 'enabled' : 'disabled'}` 
+          });
+        } else if (setting === 'quality') {
+          settings.defaultQuality = parts[2];
+          this.userSettings.set(chatId, settings);
+          await this.bot.answerCallbackQuery(query.id, { 
+            text: `Default quality set to ${parts[2]}` 
+          });
+        } else if (setting === 'notifications') {
+          settings.notifications = !settings.notifications;
+          this.userSettings.set(chatId, settings);
+          await this.bot.answerCallbackQuery(query.id, { 
+            text: `Notifications ${settings.notifications ? 'enabled' : 'disabled'}` 
+          });
+        }
+        
+        // Refresh settings display
+        await this.bot.editMessageText(
+          `⚙️ *Bot Settings:*\n\n` +
+          `Auto-delete files: ${settings.autoDelete ? '✅' : '❌'}\n` +
+          `Default quality: ${settings.defaultQuality}\n` +
+          `Notifications: ${settings.notifications ? '✅' : '❌'}\n\n` +
+          `Use buttons below to change settings:`,
+          {
+            chat_id: chatId,
+            message_id: query.message.message_id,
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: settings.autoDelete ? '✅ Auto-delete ON' : '❌ Auto-delete OFF', callback_data: 'setting:autodelete' }
+                ],
+                [
+                  { text: '🎬 Default: Best', callback_data: 'setting:quality:best' },
+                  { text: '🎬 Default: 1080p', callback_data: 'setting:quality:1080' }
+                ],
+                [
+                  { text: settings.notifications ? '🔔 Notifications ON' : '🔕 Notifications OFF', callback_data: 'setting:notifications' }
+                ]
+              ]
+            }
+          }
+        );
+        return;
+      } else if (data.startsWith('format:')) {
+        const [, type, urlId] = data.split(':');
+        
+        // Handle subtitles separately
+        if (type === 'subtitles') {
+          const cached = this.urlCache.get(parseInt(urlId));
+          if (!cached) {
+            throw new Error('URL expired. Please send the link again.');
+          }
+          await this.downloadSubtitles(chatId, query.message.message_id, cached.url, cached.info);
+          this.urlCache.delete(parseInt(urlId));
+          await this.bot.answerCallbackQuery(query.id);
+          return;
+        }
+        
+        // Show quality selection with file size estimates
         const keyboard = type === 'video' 
           ? [
-              [{ text: '4K', callback_data: `quality:${type}:4k:${fullUrl}` }],
-              [{ text: '2K', callback_data: `quality:${type}:2k:${fullUrl}` }],
-              [{ text: '1080p', callback_data: `quality:${type}:1080:${fullUrl}` }],
-              [{ text: '720p', callback_data: `quality:${type}:720:${fullUrl}` }],
-              [{ text: 'Best', callback_data: `quality:${type}:best:${fullUrl}` }]
+              [{ text: '4K (Large)', callback_data: `quality:${type}:4k:${urlId}` }],
+              [{ text: '2K (Large)', callback_data: `quality:${type}:2k:${urlId}` }],
+              [{ text: '1080p (Medium)', callback_data: `quality:${type}:1080:${urlId}` }],
+              [{ text: '720p (Small)', callback_data: `quality:${type}:720:${urlId}` }],
+              [{ text: 'Best Available', callback_data: `quality:${type}:best:${urlId}` }]
             ]
           : [
-              [{ text: 'Best Quality', callback_data: `quality:${type}:best:${fullUrl}` }]
+              [{ text: 'Best Quality', callback_data: `quality:${type}:best:${urlId}` }],
+              [{ text: 'Medium (128kbps)', callback_data: `quality:${type}:medium:${urlId}` }]
             ];
 
         await this.bot.editMessageText(
-          `Select quality:`,
+          `Select quality:\n\n` +
+          `⚠️ Note: Files over 2GB cannot be sent via Telegram`,
           {
             chat_id: chatId,
             message_id: query.message.message_id,
@@ -177,12 +505,17 @@ export class TelegramBotService {
           }
         );
       } else if (data.startsWith('quality:')) {
-        const parts = data.split(':');
-        const type = parts[1];
-        const quality = parts[2];
-        const url = parts.slice(3).join(':');
+        const [, type, quality, urlId] = data.split(':');
+        const cached = this.urlCache.get(parseInt(urlId));
         
-        await this.startDownload(chatId, query.message.message_id, url, type, quality);
+        if (!cached) {
+          throw new Error('URL expired. Please send the link again.');
+        }
+        
+        await this.startDownload(chatId, query.message.message_id, cached.url, type, quality, cached.info);
+        
+        // Clean up URL from cache after use
+        this.urlCache.delete(parseInt(urlId));
       }
 
       await this.bot.answerCallbackQuery(query.id);
@@ -191,10 +524,11 @@ export class TelegramBotService {
     }
   }
 
-  async startDownload(chatId, messageId, url, type, quality) {
+  async startDownload(chatId, messageId, url, type, quality, info) {
     try {
       await this.bot.editMessageText(
         `⏬ Starting download...\n\n` +
+        `📹 ${info.title.substring(0, 50)}...\n` +
         `Type: ${type}\n` +
         `Quality: ${quality}`,
         {
@@ -207,8 +541,17 @@ export class TelegramBotService {
       const downloadInfo = await this.downloadService.startDownload(url, type, quality);
       this.userDownloads.set(chatId, downloadInfo.id);
 
+      // Add to user history
+      this.addToHistory(chatId, {
+        title: info.title,
+        type,
+        quality,
+        status: 'started',
+        date: new Date()
+      });
+
       // Monitor progress
-      this.monitorDownload(chatId, messageId, downloadInfo.id);
+      this.monitorDownload(chatId, messageId, downloadInfo.id, info.title);
     } catch (error) {
       await this.bot.editMessageText(
         `❌ Download failed: ${error.message}`,
@@ -217,10 +560,89 @@ export class TelegramBotService {
           message_id: messageId
         }
       );
+      
+      // Update history
+      this.updateHistoryStatus(chatId, 'failed');
     }
   }
 
-  monitorDownload(chatId, messageId, downloadId) {
+  async downloadSubtitles(chatId, messageId, url, info) {
+    try {
+      await this.bot.editMessageText(
+        `📝 Downloading subtitles...\n\n${info.title.substring(0, 50)}...`,
+        {
+          chat_id: chatId,
+          message_id: messageId
+        }
+      );
+
+      const youtubedl = (await import('youtube-dl-exec')).default;
+      const sanitize = (await import('sanitize-filename')).default;
+      const path = (await import('path')).default;
+      
+      const filename = sanitize(info.title);
+      const outputPath = path.join(this.downloadService.downloadPath, `${filename}.srt`);
+
+      await youtubedl(url, {
+        output: outputPath,
+        writeAutoSub: true,
+        subLang: 'en',
+        skipDownload: true,
+        noCheckCertificates: true
+      });
+
+      if (fs.existsSync(outputPath)) {
+        await this.bot.sendDocument(chatId, outputPath, {
+          caption: `📝 Subtitles: ${info.title}`
+        });
+        
+        await this.bot.editMessageText(
+          `✅ Subtitles downloaded!`,
+          {
+            chat_id: chatId,
+            message_id: messageId
+          }
+        );
+        
+        // Clean up
+        fs.unlinkSync(outputPath);
+      } else {
+        throw new Error('No subtitles available for this video');
+      }
+    } catch (error) {
+      await this.bot.editMessageText(
+        `❌ Subtitles not available: ${error.message}`,
+        {
+          chat_id: chatId,
+          message_id: messageId
+        }
+      );
+    }
+  }
+
+  addToHistory(chatId, item) {
+    if (!this.userHistory.has(chatId)) {
+      this.userHistory.set(chatId, []);
+    }
+    const history = this.userHistory.get(chatId);
+    history.push(item);
+    
+    // Keep only last 50 items
+    if (history.length > 50) {
+      history.shift();
+    }
+  }
+
+  updateHistoryStatus(chatId, status) {
+    const history = this.userHistory.get(chatId);
+    if (history && history.length > 0) {
+      history[history.length - 1].status = status;
+    }
+  }
+
+  monitorDownload(chatId, messageId, downloadId, title) {
+    let lastProgress = 0;
+    
     const interval = setInterval(async () => {
       const download = this.downloadService.activeDownloads.get(downloadId);
       
@@ -230,17 +652,28 @@ export class TelegramBotService {
         // Check if completed
         const completed = this.downloadService.downloadHistory.find(d => d.id === downloadId);
         if (completed && completed.status === 'completed') {
+          this.updateHistoryStatus(chatId, 'completed');
           await this.sendFile(chatId, messageId, completed);
         }
         return;
       }
 
-      // Update progress
+      // Calculate speed and ETA
+      const progressDiff = download.progress - lastProgress;
+      const speed = progressDiff / 2; // progress per second
+      const remaining = 100 - download.progress;
+      const eta = speed > 0 ? Math.round(remaining / speed) : 0;
+      
+      lastProgress = download.progress;
+
+      // Update progress with more details
       const progressBar = this.createProgressBar(download.progress);
       await this.bot.editMessageText(
         `⏬ Downloading...\n\n` +
+        `📹 ${title.substring(0, 40)}...\n\n` +
         `${progressBar} ${Math.round(download.progress)}%\n\n` +
-        `Status: ${download.status}`,
+        `Status: ${download.status}\n` +
+        `⏱️ ETA: ${this.formatTime(eta)}`,
         {
           chat_id: chatId,
           message_id: messageId
@@ -252,7 +685,7 @@ export class TelegramBotService {
   async sendFile(chatId, messageId, downloadInfo) {
     try {
       await this.bot.editMessageText(
-        `✅ Download completed!\n\nSending file...`,
+        `✅ Download completed!\n\nChecking file...`,
         {
           chat_id: chatId,
           message_id: messageId
@@ -266,40 +699,109 @@ export class TelegramBotService {
       }
 
       const fileSize = fs.statSync(filePath).size;
-      const maxSize = 2000 * 1024 * 1024; // 2000MB (2GB) Telegram limit
+      const maxBotApiSize = 50 * 1024 * 1024; // 50MB - Bot API limit
+      const maxTelegramSize = 2000 * 1024 * 1024; // 2GB - Telegram client limit
 
-      if (fileSize > maxSize) {
-        await this.bot.sendMessage(chatId, 
-          `⚠️ File is too large for Telegram (${this.formatBytes(fileSize)}).\n\n` +
-          `Maximum size: 2GB\n` +
-          `Please download from the web interface.`
+      // Check if file is too large for Telegram entirely
+      if (fileSize > maxTelegramSize) {
+        await this.bot.editMessageText(
+          `⚠️ File is too large for Telegram!\n\n` +
+          `📦 File size: ${this.formatBytes(fileSize)}\n` +
+          `⚠️ Maximum: 2GB\n\n` +
+          `Please download from the web interface.`,
+          {
+            chat_id: chatId,
+            message_id: messageId
+          }
         );
         return;
       }
 
-      // Send file
-      if (downloadInfo.type === 'audio') {
-        await this.bot.sendAudio(chatId, filePath, {
-          caption: downloadInfo.title
+      // Check if file is too large for Bot API (needs document upload)
+      if (fileSize > maxBotApiSize) {
+        await this.bot.editMessageText(
+          `⚠️ File is too large for direct upload!\n\n` +
+          `📦 File size: ${this.formatBytes(fileSize)}\n` +
+          `⚠️ Bot API limit: 50MB\n\n` +
+          `Sending as document...`,
+          {
+            chat_id: chatId,
+            message_id: messageId
+          }
+        );
+
+        // Send as document for files over 50MB
+        await this.bot.sendDocument(chatId, filePath, {
+          caption: `📦 ${downloadInfo.title}\n\n` +
+            `Size: ${this.formatBytes(fileSize)}\n` +
+            `Type: ${downloadInfo.type}\n\n` +
+            `⚠️ Large file - may take time to upload`
         });
+
+        await this.bot.editMessageText(
+          `✅ Download completed and sent as document!\n\n📦 Size: ${this.formatBytes(fileSize)}`,
+          {
+            chat_id: chatId,
+            message_id: messageId
+          }
+        );
       } else {
-        await this.bot.sendVideo(chatId, filePath, {
-          caption: downloadInfo.title,
-          supports_streaming: true
-        });
+        // Normal upload for files under 50MB
+        await this.bot.editMessageText(
+          `✅ Download completed!\n\nSending file...`,
+          {
+            chat_id: chatId,
+            message_id: messageId
+          }
+        );
+
+        // Send file
+        if (downloadInfo.type === 'audio') {
+          await this.bot.sendAudio(chatId, filePath, {
+            caption: `🎵 ${downloadInfo.title}\n\n📦 Size: ${this.formatBytes(fileSize)}`
+          });
+        } else {
+          await this.bot.sendVideo(chatId, filePath, {
+            caption: `🎥 ${downloadInfo.title}\n\n📦 Size: ${this.formatBytes(fileSize)}`,
+            supports_streaming: true
+          });
+        }
+
+        await this.bot.editMessageText(
+          `✅ Download completed and sent!\n\n📦 Size: ${this.formatBytes(fileSize)}`,
+          {
+            chat_id: chatId,
+            message_id: messageId
+          }
+        );
       }
 
-      await this.bot.editMessageText(
-        `✅ Download completed and sent!`,
-        {
-          chat_id: chatId,
-          message_id: messageId
-        }
-      );
-
       this.userDownloads.delete(chatId);
+      
+      // Auto-delete if enabled
+      const settings = this.userSettings.get(chatId) || this.getDefaultSettings();
+      if (settings.autoDelete) {
+        setTimeout(() => {
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            console.log(`Auto-deleted: ${filePath}`);
+          }
+        }, 60000); // Delete after 1 minute
+      }
     } catch (error) {
-      await this.bot.sendMessage(chatId, `❌ Error sending file: ${error.message}`);
+      console.error('Error sending file:', error);
+      
+      // Provide more specific error messages
+      let errorMsg = '❌ Error sending file: ';
+      if (error.message.includes('Too Large') || error.message.includes('413')) {
+        errorMsg += 'File is too large. Try downloading a lower quality version.';
+      } else if (error.message.includes('ETELEGRAM')) {
+        errorMsg += 'Telegram API error. The file might be too large or in an unsupported format.';
+      } else {
+        errorMsg += error.message;
+      }
+      
+      await this.bot.sendMessage(chatId, errorMsg);
     }
   }
 
@@ -327,14 +829,60 @@ export class TelegramBotService {
   }
 
   formatNumber(num) {
+    if (!num || isNaN(num)) return 'N/A';
     return new Intl.NumberFormat().format(num);
   }
 
   formatBytes(bytes) {
-    if (bytes === 0) return '0 Bytes';
+    if (!bytes || bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  }
+
+  formatTime(seconds) {
+    if (!seconds || seconds < 60) return `${seconds || 0}s`;
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes}m ${secs}s`;
+  }
+
+  formatUploadDate(dateString) {
+    if (!dateString) return 'Unknown';
+    
+    try {
+      // Handle YYYYMMDD format (e.g., "20231225")
+      if (typeof dateString === 'string' && dateString.length === 8) {
+        const year = dateString.substring(0, 4);
+        const month = dateString.substring(4, 6);
+        const day = dateString.substring(6, 8);
+        const date = new Date(`${year}-${month}-${day}`);
+        
+        if (isNaN(date.getTime())) return 'Unknown';
+        return `${year}/${month}/${day}`;
+      }
+      
+      // Handle standard date formats
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Unknown';
+      
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      
+      return `${year}/${month}/${day}`;
+    } catch (error) {
+      return 'Unknown';
+    }
+  }
+
+  getUploader(info) {
+    // Try multiple possible field names for uploader
+    return info.uploader || 
+           info.channel || 
+           info.uploader_id || 
+           info.channel_id || 
+           'Unknown Channel';
   }
 }

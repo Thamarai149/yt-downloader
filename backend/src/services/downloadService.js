@@ -55,18 +55,33 @@ export class DownloadService {
       this.activeDownloads.set(downloadId, downloadInfo);
       this.emitProgress(downloadId, downloadInfo);
 
-      // Start download
-      await this.executeDownload(url, type, quality, outputPath, downloadId);
+      // Start download in background - don't await here
+      this.executeDownload(url, type, quality, outputPath, downloadId)
+        .then(() => {
+          // Update status on completion
+          const download = this.activeDownloads.get(downloadId);
+          if (download) {
+            download.status = 'completed';
+            download.progress = 100;
+            download.endTime = new Date();
+            
+            this.downloadHistory.push(download);
+            this.activeDownloads.delete(downloadId);
+            this.emitProgress(downloadId, download);
+          }
+        })
+        .catch((error) => {
+          const download = this.activeDownloads.get(downloadId);
+          if (download) {
+            download.status = 'failed';
+            download.error = error.message;
+            this.downloadHistory.push(download);
+            this.activeDownloads.delete(downloadId);
+            this.emitProgress(downloadId, download);
+          }
+        });
 
-      // Update status
-      downloadInfo.status = 'completed';
-      downloadInfo.progress = 100;
-      downloadInfo.endTime = new Date();
-      
-      this.downloadHistory.push(downloadInfo);
-      this.activeDownloads.delete(downloadId);
-      this.emitProgress(downloadId, downloadInfo);
-
+      // Return immediately with download info
       return downloadInfo;
     } catch (error) {
       const downloadInfo = this.activeDownloads.get(downloadId);
@@ -86,8 +101,7 @@ export class DownloadService {
       output: outputPath,
       noCheckCertificates: true,
       noWarnings: true,
-      addHeader: ['referer:youtube.com', 'user-agent:googlebot'],
-      progress: true
+      addHeader: ['referer:youtube.com', 'user-agent:googlebot']
     };
 
     if (type === 'audio') {
@@ -113,9 +127,20 @@ export class DownloadService {
       }
     }
 
+    // Simulate progress updates during download
+    const progressInterval = setInterval(() => {
+      const downloadInfo = this.activeDownloads.get(downloadId);
+      if (downloadInfo && downloadInfo.progress < 90) {
+        downloadInfo.progress = Math.min(90, downloadInfo.progress + 10);
+        this.emitProgress(downloadId, downloadInfo);
+      }
+    }, 2000);
+
     // Execute download - youtube-dl-exec returns a promise
     try {
       await youtubedl(url, options);
+      
+      clearInterval(progressInterval);
       
       // Update progress to 100% on completion
       const downloadInfo = this.activeDownloads.get(downloadId);
@@ -124,6 +149,7 @@ export class DownloadService {
         this.emitProgress(downloadId, downloadInfo);
       }
     } catch (error) {
+      clearInterval(progressInterval);
       console.error('Download execution error:', error);
       throw error;
     }

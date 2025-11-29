@@ -1,7 +1,5 @@
 import TelegramBot from 'node-telegram-bot-api';
 import { config } from '../config/index.js';
-import { AppError } from '../middleware/errorHandler.js';
-import path from 'path';
 import fs from 'fs';
 
 export class TelegramBotService {
@@ -268,11 +266,12 @@ export class TelegramBotService {
       }
 
       const fileSize = fs.statSync(filePath).size;
-      const maxSize = 50 * 1024 * 1024; // 50MB Telegram limit
+      const maxSize = 2000 * 1024 * 1024; // 2000MB (2GB) Telegram limit
 
       if (fileSize > maxSize) {
         await this.bot.sendMessage(chatId, 
           `⚠️ File is too large for Telegram (${this.formatBytes(fileSize)}).\n\n` +
+          `Maximum size: 2GB\n` +
           `Please download from the web interface.`
         );
         return;

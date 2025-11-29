@@ -46,12 +46,12 @@ The bot will automatically initialize when the server starts.
 - ✅ Real-time progress updates
 - ✅ Video information preview
 - ✅ Download cancellation
-- ✅ File size checking (max 50MB for Telegram)
+- ✅ File size checking (max 2GB for Telegram)
 
 ## 5. Limitations
 
-- Telegram has a 50MB file size limit for bots
-- Files larger than 50MB will show a message to download from web interface
+- Telegram has a 2GB file size limit for bots
+- Files larger than 2GB will show a message to download from web interface
 - Bot uses polling mode (suitable for development)
 
 ## 6. Production Deployment
@@ -74,6 +74,7 @@ For production, consider:
 - Verify FFmpeg is installed (for video merging)
 
 **File sending errors:**
-- Check file size (must be under 50MB)
+- Check file size (must be under 2GB)
 - Verify file exists in download directory
 - Check bot permissions
+- Large files may take time to upload

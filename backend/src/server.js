@@ -87,6 +87,14 @@ initializeServices(io);
 // Routes
 app.use('/api', routes);
 
+// Serve static files from web-frontend
+app.use(express.static(path.join(__dirname, '../../web-frontend')));
+
+// Root route - serve index.html
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../../web-frontend/index.html'));
+});
+
 // Error handling
 app.use(errorHandler);
 

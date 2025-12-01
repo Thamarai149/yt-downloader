@@ -15,6 +15,26 @@ router.get('/health', (req, res) => {
   });
 });
 
+// API info endpoint
+router.get('/', (req, res) => {
+  res.json({
+    name: 'StreamedV3 API',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/api/health',
+      download: '/api/download',
+      video: '/api/video',
+      files: '/api/files',
+      batch: '/api/batch'
+    },
+    telegram: {
+      bot: 'Active',
+      features: ['Video Download', 'Audio Download', 'Subtitles', 'File Splitting']
+    }
+  });
+});
+
 // Routes
 router.use('/download', downloadRoutes);
 router.use('/video', videoRoutes);

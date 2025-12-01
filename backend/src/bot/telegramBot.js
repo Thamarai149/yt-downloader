@@ -13,6 +13,7 @@ export class TelegramBotService {
     this.lastErrorTime = null;
     this.userHistory = new Map(); // Store download history per user
     this.userSettings = new Map(); // Store user settings
+    this.pendingSplits = new Map(); // Store files pending split decision
   }
 
   getDefaultSettings() {
@@ -344,7 +345,7 @@ export class TelegramBotService {
             `👤 ${this.getUploader(info)}\n` +
             `⏱️ Duration: ${this.formatDuration(info.duration || 0)}\n` +
             `👁️ Views: ${this.formatNumber(info.viewCount || info.view_count || 0)}\n` +
-            `� ${ this.formatUploadDate(info.upload_date)}`;
+            `� ${ this.formatUploadDate(info.uploadDate || info.upload_date)}`;
           
           await this.bot.sendPhoto(chatId, info.thumbnail, {
             caption: caption,
@@ -484,10 +485,12 @@ export class TelegramBotService {
         // Show quality selection with file size estimates
         const keyboard = type === 'video' 
           ? [
-              [{ text: '4K (Large)', callback_data: `quality:${type}:4k:${urlId}` }],
-              [{ text: '2K (Large)', callback_data: `quality:${type}:2k:${urlId}` }],
-              [{ text: '1080p (Medium)', callback_data: `quality:${type}:1080:${urlId}` }],
-              [{ text: '720p (Small)', callback_data: `quality:${type}:720:${urlId}` }],
+              [{ text: '720p (Recommended)', callback_data: `quality:${type}:720:${urlId}` }],
+              [{ text: '480p (Small)', callback_data: `quality:${type}:480:${urlId}` }],
+              [{ text: '360p (Smallest)', callback_data: `quality:${type}:360:${urlId}` }],
+              [{ text: '1080p (Large)', callback_data: `quality:${type}:1080:${urlId}` }],
+              [{ text: '2K (Very Large)', callback_data: `quality:${type}:2k:${urlId}` }],
+              [{ text: '4K (Huge)', callback_data: `quality:${type}:4k:${urlId}` }],
               [{ text: 'Best Available', callback_data: `quality:${type}:best:${urlId}` }]
             ]
           : [
@@ -497,13 +500,51 @@ export class TelegramBotService {
 
         await this.bot.editMessageText(
           `Select quality:\n\n` +
-          `⚠️ Note: Files over 2GB cannot be sent via Telegram`,
+          `⚠️ Important: Telegram Bot API limit is 50MB\n` +
+          `💡 Choose 720p or lower for reliable delivery\n` +
+          `📊 Larger files will be split or need web download`,
           {
             chat_id: chatId,
             message_id: query.message.message_id,
             reply_markup: { inline_keyboard: keyboard }
           }
         );
+      } else if (data.startsWith('split:')) {
+        const downloadId = data.split(':')[1];
+        const splitInfo = this.pendingSplits.get(downloadId);
+        
+        if (!splitInfo) {
+          throw new Error('Split request expired. Please download again.');
+        }
+        
+        await this.splitAndSendFile(splitInfo.chatId, splitInfo.messageId, splitInfo.filePath, splitInfo.downloadInfo);
+        this.pendingSplits.delete(downloadId);
+        
+      } else if (data.startsWith('link:')) {
+        const downloadId = data.split(':')[1];
+        const splitInfo = this.pendingSplits.get(downloadId);
+        
+        if (!splitInfo) {
+          throw new Error('Link request expired. Please download again.');
+        }
+        
+        const path = await import('path');
+        const fileName = path.basename(splitInfo.filePath);
+        
+        await this.bot.editMessageText(
+          `✅ Download completed!\n\n` +
+          `📦 ${splitInfo.downloadInfo.title.substring(0, 50)}...\n\n` +
+          `⚠️ File saved on server\n` +
+          `📁 ${fileName}\n\n` +
+          `💡 Get file from web interface`,
+          {
+            chat_id: splitInfo.chatId,
+            message_id: splitInfo.messageId
+          }
+        );
+        
+        this.pendingSplits.delete(downloadId);
+        
       } else if (data.startsWith('quality:')) {
         const [, type, quality, urlId] = data.split(':');
         const cached = this.urlCache.get(parseInt(urlId));
@@ -520,7 +561,11 @@ export class TelegramBotService {
 
       await this.bot.answerCallbackQuery(query.id);
     } catch (error) {
-      await this.bot.answerCallbackQuery(query.id, { text: `Error: ${error.message}` });
+      // Telegram callback query text limit is 200 characters
+      const errorText = error.message.length > 180 
+        ? error.message.substring(0, 180) + '...' 
+        : error.message;
+      await this.bot.answerCallbackQuery(query.id, { text: `Error: ${errorText}` });
     }
   }
 
@@ -642,19 +687,63 @@ export class TelegramBotService {
 
   monitorDownload(chatId, messageId, downloadId, title) {
     let lastProgress = 0;
+    let checkCount = 0;
+    const maxChecks = 300; // 10 minutes max (300 * 2 seconds)
     
     const interval = setInterval(async () => {
+      checkCount++;
+      
+      // Timeout after max checks
+      if (checkCount > maxChecks) {
+        clearInterval(interval);
+        await this.bot.editMessageText(
+          `⏱️ Download timeout. Please try again.`,
+          {
+            chat_id: chatId,
+            message_id: messageId
+          }
+        ).catch(() => {});
+        return;
+      }
+      
       const download = this.downloadService.activeDownloads.get(downloadId);
       
       if (!download) {
         clearInterval(interval);
         
-        // Check if completed
-        const completed = this.downloadService.downloadHistory.find(d => d.id === downloadId);
-        if (completed && completed.status === 'completed') {
-          this.updateHistoryStatus(chatId, 'completed');
-          await this.sendFile(chatId, messageId, completed);
-        }
+        // Wait a bit for history to update
+        setTimeout(async () => {
+          // Check if completed
+          const completed = this.downloadService.downloadHistory.find(d => d.id === downloadId);
+          
+          if (completed) {
+            if (completed.status === 'completed') {
+              console.log(`Download completed: ${downloadId}, sending file...`);
+              this.updateHistoryStatus(chatId, 'completed');
+              await this.sendFile(chatId, messageId, completed);
+            } else if (completed.status === 'failed') {
+              console.log(`Download failed: ${downloadId}`);
+              this.updateHistoryStatus(chatId, 'failed');
+              await this.bot.editMessageText(
+                `❌ Download failed: ${completed.error || 'Unknown error'}`,
+                {
+                  chat_id: chatId,
+                  message_id: messageId
+                }
+              ).catch(() => {});
+            }
+          } else {
+            console.log(`Download not found in history: ${downloadId}`);
+            await this.bot.editMessageText(
+              `❌ Download status unknown. Please try again.`,
+              {
+                chat_id: chatId,
+                message_id: messageId
+              }
+            ).catch(() => {});
+          }
+        }, 1000);
+        
         return;
       }
 
@@ -684,6 +773,8 @@ export class TelegramBotService {
 
   async sendFile(chatId, messageId, downloadInfo) {
     try {
+      console.log(`Sending file to chat ${chatId}: ${downloadInfo.title}`);
+      
       await this.bot.editMessageText(
         `✅ Download completed!\n\nChecking file...`,
         {
@@ -693,60 +784,84 @@ export class TelegramBotService {
       );
 
       const filePath = downloadInfo.outputPath;
+      console.log(`File path: ${filePath}`);
       
       if (!fs.existsSync(filePath)) {
+        console.error(`File not found: ${filePath}`);
         throw new Error('File not found');
       }
+      
+      console.log(`File exists, size check...`);
 
       const fileSize = fs.statSync(filePath).size;
-      const maxBotApiSize = 50 * 1024 * 1024; // 50MB - Bot API limit
-      const maxTelegramSize = 2000 * 1024 * 1024; // 2GB - Telegram client limit
+      console.log(`File size: ${this.formatBytes(fileSize)}`);
+      
+      const maxBotApiSize = 50 * 1024 * 1024; // 50MB - Bot API limit (Telegram restriction)
+      const maxSplitSize = 2000 * 1024 * 1024; // 2GB - Max size for splitting
 
-      // Check if file is too large for Telegram entirely
-      if (fileSize > maxTelegramSize) {
-        await this.bot.editMessageText(
-          `⚠️ File is too large for Telegram!\n\n` +
-          `📦 File size: ${this.formatBytes(fileSize)}\n` +
-          `⚠️ Maximum: 2GB\n\n` +
-          `Please download from the web interface.`,
-          {
-            chat_id: chatId,
-            message_id: messageId
-          }
-        );
+      // Check if file is too large for Bot API
+      if (fileSize > maxBotApiSize) {
+        console.log(`File over 50MB (${this.formatBytes(fileSize)})`);
+        
+        // If file is under 200MB, offer to split it
+        if (fileSize <= maxSplitSize) {
+          await this.bot.editMessageText(
+            `✅ Download completed!\n\n` +
+            `📦 ${downloadInfo.title}\n` +
+            `📊 Size: ${this.formatBytes(fileSize)}\n\n` +
+            `⚠️ File exceeds 50MB limit\n\n` +
+            `Choose an option:`,
+            {
+              chat_id: chatId,
+              message_id: messageId,
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    { text: '✂️ Split & Send Parts', callback_data: `split:${downloadInfo.id}` }
+                  ],
+                  [
+                    { text: '🌐 Download Link', callback_data: `link:${downloadInfo.id}` }
+                  ]
+                ]
+              }
+            }
+          );
+          
+          // Store download info for callback
+          this.pendingSplits.set(downloadInfo.id, { chatId, messageId, downloadInfo, filePath });
+        } else {
+          // File too large even for splitting
+          const path = await import('path');
+          const fileName = path.basename(filePath);
+          
+          await this.bot.editMessageText(
+            `✅ Download completed!\n\n` +
+            `📦 ${downloadInfo.title.substring(0, 50)}...\n` +
+            `� Sizoe: ${this.formatBytes(fileSize)}\n\n` +
+            `⚠️ File too large to split (max 2GB)\n\n` +
+            `📁 ${fileName}\n` +
+            `💡 Get file from web interface`,
+            {
+              chat_id: chatId,
+              message_id: messageId
+            }
+          );
+        }
+        
+        this.userDownloads.delete(chatId);
         return;
       }
 
-      // Check if file is too large for Bot API (needs document upload)
-      if (fileSize > maxBotApiSize) {
-        await this.bot.editMessageText(
-          `⚠️ File is too large for direct upload!\n\n` +
-          `📦 File size: ${this.formatBytes(fileSize)}\n` +
-          `⚠️ Bot API limit: 50MB\n\n` +
-          `Sending as document...`,
-          {
-            chat_id: chatId,
-            message_id: messageId
-          }
-        );
-
-        // Send as document for files over 50MB
-        await this.bot.sendDocument(chatId, filePath, {
-          caption: `📦 ${downloadInfo.title}\n\n` +
-            `Size: ${this.formatBytes(fileSize)}\n` +
-            `Type: ${downloadInfo.type}\n\n` +
-            `⚠️ Large file - may take time to upload`
-        });
-
-        await this.bot.editMessageText(
-          `✅ Download completed and sent as document!\n\n📦 Size: ${this.formatBytes(fileSize)}`,
-          {
-            chat_id: chatId,
-            message_id: messageId
-          }
-        );
-      } else {
-        // Normal upload for files under 50MB
+      // Normal upload for files under 50MB
+      if (fileSize <= maxBotApiSize) {
+        console.log(`File under 50MB, sending as ${downloadInfo.type}...`);
+        
+        // Check file extension
+        const path = await import('path');
+        const ext = path.extname(filePath).toLowerCase();
+        const validVideoExts = ['.mp4', '.mkv', '.avi', '.mov', '.webm'];
+        const validAudioExts = ['.mp3', '.m4a', '.aac', '.ogg', '.wav'];
+        
         await this.bot.editMessageText(
           `✅ Download completed!\n\nSending file...`,
           {
@@ -755,20 +870,71 @@ export class TelegramBotService {
           }
         );
 
-        // Send file
-        if (downloadInfo.type === 'audio') {
+        // Send file based on type and extension
+        if (downloadInfo.type === 'audio' || validAudioExts.includes(ext)) {
+          console.log(`Sending audio...`);
+          
+          const fileName = path.basename(filePath);
+          const fileExt = ext.toUpperCase().replace('.', '');
+          
+          const caption = `${downloadInfo.title}\n\n` +
+            `📊 ${this.formatBytes(fileSize)}\n\n` +
+            `DOWNLOAD\n\n` +
+            `${fileName}\n\n` +
+            `🎵 Audio  📁 ${fileExt}`;
+          
           await this.bot.sendAudio(chatId, filePath, {
-            caption: `🎵 ${downloadInfo.title}\n\n📦 Size: ${this.formatBytes(fileSize)}`
+            caption: caption,
+            title: downloadInfo.title
           });
-        } else {
+        } else if (validVideoExts.includes(ext)) {
+          console.log(`Sending video...`);
+          
+          // Get file details
+          const fileName = path.basename(filePath);
+          const fileExt = ext.toUpperCase().replace('.', '');
+          
+          // Build detailed caption like the example
+          const qualityText = downloadInfo.quality === '4k' ? '2160p' :
+                             downloadInfo.quality === '2k' ? '1440p' :
+                             downloadInfo.quality === '1080' ? '1080p' :
+                             downloadInfo.quality === '720' ? '720p' :
+                             downloadInfo.quality === '480' ? '480p' :
+                             downloadInfo.quality === '360' ? '360p' : 'HD';
+          
+          const caption = `${downloadInfo.title}\n\n` +
+            `📊 ${this.formatBytes(fileSize)}\n\n` +
+            `DOWNLOAD\n\n` +
+            `${fileName}\n\n` +
+            `🎬 ${qualityText}  ⏱️ Duration\n` +
+            `📁 ${fileExt}`;
+          
           await this.bot.sendVideo(chatId, filePath, {
-            caption: `🎥 ${downloadInfo.title}\n\n📦 Size: ${this.formatBytes(fileSize)}`,
+            caption: caption,
             supports_streaming: true
           });
+        } else {
+          // Send as document if format is uncertain
+          console.log(`Sending as document (unknown format)...`);
+          
+          const fileName = path.basename(filePath);
+          const fileExt = ext.toUpperCase().replace('.', '');
+          
+          const caption = `${downloadInfo.title}\n\n` +
+            `📊 ${this.formatBytes(fileSize)}\n\n` +
+            `DOWNLOAD\n\n` +
+            `${fileName}\n\n` +
+            `📁 ${fileExt}`;
+          
+          await this.bot.sendDocument(chatId, filePath, {
+            caption: caption
+          });
         }
+        
+        console.log(`File sent successfully`);
 
         await this.bot.editMessageText(
-          `✅ Download completed and sent!\n\n📦 Size: ${this.formatBytes(fileSize)}`,
+          `✅ Sent successfully!\n\n📦 Size: ${this.formatBytes(fileSize)}`,
           {
             chat_id: chatId,
             message_id: messageId
@@ -791,17 +957,50 @@ export class TelegramBotService {
     } catch (error) {
       console.error('Error sending file:', error);
       
+      const filePath = downloadInfo.outputPath;
+      const fileSize = fs.existsSync(filePath) ? fs.statSync(filePath).size : 0;
+      
       // Provide more specific error messages
-      let errorMsg = '❌ Error sending file: ';
-      if (error.message.includes('Too Large') || error.message.includes('413')) {
-        errorMsg += 'File is too large. Try downloading a lower quality version.';
-      } else if (error.message.includes('ETELEGRAM')) {
-        errorMsg += 'Telegram API error. The file might be too large or in an unsupported format.';
+      let errorMsg = '❌ Error sending file\n\n';
+      
+      if (error.message.includes('Too Large') || error.message.includes('413') || error.message.includes('too large')) {
+        errorMsg += `📦 File size: ${this.formatBytes(fileSize)}\n` +
+                   `⚠️ Exceeds Telegram's 50MB limit\n\n` +
+                   `💡 Solutions:\n` +
+                   `1. Try 720p, 480p, or 360p quality\n` +
+                   `2. Download audio only (smaller)\n` +
+                   `3. Use the download link provided`;
+      } else if (error.message.includes('unsupported format') || error.message.includes('ETELEGRAM')) {
+        errorMsg += `⚠️ File format or size issue\n\n` +
+                   `📦 Size: ${this.formatBytes(fileSize)}\n` +
+                   `📁 File: ${downloadInfo.title}\n\n` +
+                   `💡 Try:\n` +
+                   `• Lower quality (720p or below)\n` +
+                   `• Audio format instead\n` +
+                   `• Download from web interface`;
       } else {
         errorMsg += error.message;
       }
       
       await this.bot.sendMessage(chatId, errorMsg);
+      
+      // If file exists and is over 50MB, provide download link
+      if (fs.existsSync(filePath) && fileSize > 50 * 1024 * 1024) {
+        const path = await import('path');
+        const fileName = path.basename(filePath);
+        const downloadLink = `http://localhost:3001/api/files/download/${encodeURIComponent(fileName)}`;
+        
+        await this.bot.sendMessage(chatId, 
+          `🌐 Download link:\n${downloadLink}`,
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '⬇️ Download File', url: downloadLink }]
+              ]
+            }
+          }
+        );
+      }
     }
   }
 
@@ -849,30 +1048,46 @@ export class TelegramBotService {
   }
 
   formatUploadDate(dateString) {
-    if (!dateString) return 'Unknown';
+    if (!dateString) {
+      console.log('No date string provided');
+      return 'Unknown';
+    }
+    
+    console.log('Formatting date:', dateString, 'Type:', typeof dateString);
     
     try {
       // Handle YYYYMMDD format (e.g., "20231225")
-      if (typeof dateString === 'string' && dateString.length === 8) {
+      if (typeof dateString === 'string' && dateString.length === 8 && /^\d{8}$/.test(dateString)) {
         const year = dateString.substring(0, 4);
         const month = dateString.substring(4, 6);
         const day = dateString.substring(6, 8);
-        const date = new Date(`${year}-${month}-${day}`);
-        
-        if (isNaN(date.getTime())) return 'Unknown';
+        console.log(`Parsed YYYYMMDD: ${year}/${month}/${day}`);
         return `${year}/${month}/${day}`;
+      }
+      
+      // Handle YYYY-MM-DD format
+      if (typeof dateString === 'string' && dateString.includes('-')) {
+        const parts = dateString.split('-');
+        if (parts.length === 3) {
+          console.log(`Parsed YYYY-MM-DD: ${parts[0]}/${parts[1]}/${parts[2]}`);
+          return `${parts[0]}/${parts[1]}/${parts[2]}`;
+        }
       }
       
       // Handle standard date formats
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) return 'Unknown';
+      if (!isNaN(date.getTime())) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        console.log(`Parsed standard date: ${year}/${month}/${day}`);
+        return `${year}/${month}/${day}`;
+      }
       
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      
-      return `${year}/${month}/${day}`;
+      console.log('Could not parse date, returning Unknown');
+      return 'Unknown';
     } catch (error) {
+      console.error('Error formatting date:', error);
       return 'Unknown';
     }
   }
@@ -884,5 +1099,98 @@ export class TelegramBotService {
            info.uploader_id || 
            info.channel_id || 
            'Unknown Channel';
+  }
+
+  async splitAndSendFile(chatId, messageId, filePath, downloadInfo) {
+    try {
+      await this.bot.editMessageText(
+        `✂️ Splitting file into parts...\n\nPlease wait...`,
+        {
+          chat_id: chatId,
+          message_id: messageId
+        }
+      );
+
+      const fileSize = fs.statSync(filePath).size;
+      const chunkSize = 45 * 1024 * 1024; // 45MB chunks (safe margin under 50MB)
+      const totalParts = Math.ceil(fileSize / chunkSize);
+
+      console.log(`Splitting file into ${totalParts} parts...`);
+
+      const path = await import('path');
+      const fileName = path.basename(filePath, path.extname(filePath));
+      const fileExt = path.extname(filePath);
+      const tempDir = path.join(path.dirname(filePath), 'temp_splits');
+
+      // Create temp directory
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+
+      // Split file into chunks
+      const readStream = fs.createReadStream(filePath, { highWaterMark: chunkSize });
+      const parts = [];
+      let partNumber = 1;
+
+      for await (const chunk of readStream) {
+        const partPath = path.join(tempDir, `${fileName}.part${partNumber}${fileExt}`);
+        fs.writeFileSync(partPath, chunk);
+        parts.push(partPath);
+        partNumber++;
+      }
+
+      console.log(`File split into ${parts.length} parts`);
+
+      // Send each part
+      await this.bot.editMessageText(
+        `✂️ File split into ${totalParts} parts\n\nSending parts...`,
+        {
+          chat_id: chatId,
+          message_id: messageId
+        }
+      );
+
+      for (let i = 0; i < parts.length; i++) {
+        const partPath = parts[i];
+        const partSize = fs.statSync(partPath).size;
+
+        await this.bot.sendDocument(chatId, partPath, {
+          caption: `📦 ${downloadInfo.title}\n\n` +
+                   `Part ${i + 1}/${totalParts}\n` +
+                   `Size: ${this.formatBytes(partSize)}\n\n` +
+                   `💡 Download all parts to reassemble`
+        });
+
+        console.log(`Sent part ${i + 1}/${totalParts}`);
+      }
+
+      // Clean up temp files
+      for (const partPath of parts) {
+        if (fs.existsSync(partPath)) {
+          fs.unlinkSync(partPath);
+        }
+      }
+      if (fs.existsSync(tempDir)) {
+        fs.rmdirSync(tempDir);
+      }
+
+      await this.bot.editMessageText(
+        `✅ All ${totalParts} parts sent successfully!\n\n` +
+        `📦 ${downloadInfo.title}\n` +
+        `📊 Total size: ${this.formatBytes(fileSize)}\n\n` +
+        `💡 To reassemble:\n` +
+        `1. Download all parts\n` +
+        `2. Use a file joiner tool\n` +
+        `3. Or use: copy /b part1+part2+... output.mp4`,
+        {
+          chat_id: chatId,
+          message_id: messageId
+        }
+      );
+
+    } catch (error) {
+      console.error('Error splitting file:', error);
+      await this.bot.sendMessage(chatId, `❌ Error splitting file: ${error.message}`);
+    }
   }
 }

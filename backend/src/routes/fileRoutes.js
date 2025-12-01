@@ -73,4 +73,41 @@ router.post('/path', (req, res, next) => {
   }
 });
 
+// Download file endpoint for Telegram bot
+router.get('/download/:filename', (req, res, next) => {
+  try {
+    const { filename } = req.params;
+    const fileService = getFileService();
+    const filePath = require('path').join(fileService.getDownloadPath(), filename);
+    
+    // Check if file exists
+    if (!require('fs').existsSync(filePath)) {
+      return res.status(404).json({
+        success: false,
+        error: 'File not found'
+      });
+    }
+    
+    // Set headers for download
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    
+    // Stream the file
+    const fileStream = require('fs').createReadStream(filePath);
+    fileStream.pipe(res);
+    
+    fileStream.on('error', (error) => {
+      console.error('Error streaming file:', error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          error: 'Error streaming file'
+        });
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

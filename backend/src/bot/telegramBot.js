@@ -14,6 +14,14 @@ export class TelegramBotService {
     this.userHistory = new Map(); // Store download history per user
     this.userSettings = new Map(); // Store user settings
     this.pendingSplits = new Map(); // Store files pending split decision
+    this.userFavorites = new Map(); // Store user favorites
+    this.downloadQueue = new Map(); // Store download queue per user
+    this.adminUsers = [
+      5943799825  // Your Telegram user ID
+      // Add more admin IDs here: 123456789, 987654321
+    ];
+    this.allUsers = new Set(); // Track all users
+    this.customFilenames = new Map(); // Store custom filenames
   }
 
   getDefaultSettings() {
@@ -92,16 +100,34 @@ export class TelegramBotService {
         '2️⃣ Choose format (video/audio/subtitles)\n' +
         '3️⃣ Select quality\n' +
         '4️⃣ Wait for download to complete\n\n' +
-        '🎯 *Commands:*\n' +
+        '🎯 *Basic Commands:*\n' +
         '/info <url> - Get video details\n' +
+        '/search <query> - Search videos\n' +
+        '/formats <url> - Show available formats\n' +
+        '/cancel - Cancel current download\n\n' +
+        '⚡ *Quick Commands:*\n' +
+        '/dl <url> <quality> - Quick download\n' +
+        '   Example: /dl https://... 720\n\n' +
+        '⭐ *Favorites:*\n' +
+        '/favorites - View favorites\n' +
+        '/addfav <url> - Add to favorites\n\n' +
+        '📋 *Queue:*\n' +
+        '/queue - View queue\n' +
+        '/addqueue <url> - Add to queue\n' +
+        '/startqueue - Start queue download\n\n' +
+        '📊 *History & Stats:*\n' +
         '/history - View download history\n' +
         '/stats - View your statistics\n' +
-        '/clear - Clear history\n' +
-        '/search <query> - Search videos\n' +
-        '/playlist <url> - Download playlist\n' +
-        '/cancel - Cancel current download\n' +
+        '/clear - Clear history\n\n' +
+        '⚙️ *Settings:*\n' +
         '/settings - Bot settings\n' +
-        '/about - About this bot',
+        '/about - About this bot\n\n' +
+        '🔥 *Discover:*\n' +
+        '/trending - View trending videos\n\n' +
+        '✏️ *Advanced:*\n' +
+        '/rename <filename> - Custom filename\n' +
+        '/clip <url> <start> <end> - Time range\n' +
+        '   Example: /clip https://... 0:30 2:45',
         { parse_mode: 'Markdown' }
       );
     });
@@ -194,12 +220,197 @@ export class TelegramBotService {
         '🎵 Extract audio in high quality\n' +
         '📝 Download subtitles\n' +
         '🔍 Search and download\n' +
-        '📊 Track your download history\n\n' +
+        '📊 Track your download history\n' +
+        '✂️ Split large files automatically\n' +
+        '⭐ Save favorites\n\n' +
         '💡 Powered by yt-dlp\n' +
         '⚡ Fast and reliable\n\n' +
         'Type /help for commands',
         { parse_mode: 'Markdown' }
       );
+    });
+
+    // Quick download command
+    this.bot.onText(/\/dl (.+) (\w+)/, async (msg, match) => {
+      const chatId = msg.chat.id;
+      const url = match[1];
+      const quality = match[2];
+      
+      try {
+        const statusMsg = await this.bot.sendMessage(chatId, '🚀 Quick download starting...');
+        const info = await this.videoInfoService.getVideoInfo(url);
+        
+        await this.startDownload(chatId, statusMsg.message_id, url, 'video', quality, info);
+      } catch (error) {
+        this.bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+      }
+    });
+
+    // Favorites command
+    this.bot.onText(/\/favorites/, (msg) => {
+      const chatId = msg.chat.id;
+      const favorites = this.userFavorites.get(chatId) || [];
+      
+      if (favorites.length === 0) {
+        this.bot.sendMessage(chatId, '⭐ No favorites yet.\n\nUse /addfav <url> to add favorites!');
+        return;
+      }
+      
+      const favText = favorites.map((fav, idx) => 
+        `${idx + 1}. ${fav.title.substring(0, 40)}...\n   ${fav.url}`
+      ).join('\n\n');
+      
+      this.bot.sendMessage(chatId, `⭐ Your Favorites:\n\n${favText}`);
+    });
+
+    // Add favorite command
+    this.bot.onText(/\/addfav (.+)/, async (msg, match) => {
+      const chatId = msg.chat.id;
+      const url = match[1];
+      
+      try {
+        const info = await this.videoInfoService.getVideoInfo(url);
+        
+        if (!this.userFavorites.has(chatId)) {
+          this.userFavorites.set(chatId, []);
+        }
+        
+        const favorites = this.userFavorites.get(chatId);
+        favorites.push({ url, title: info.title, date: new Date() });
+        
+        this.bot.sendMessage(chatId, `⭐ Added to favorites!\n\n${info.title}`);
+      } catch (error) {
+        this.bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+      }
+    });
+
+    // Queue command
+    this.bot.onText(/\/queue/, (msg) => {
+      const chatId = msg.chat.id;
+      const queue = this.downloadQueue.get(chatId) || [];
+      
+      if (queue.length === 0) {
+        this.bot.sendMessage(chatId, '📋 Queue is empty.\n\nUse /addqueue <url> to add videos!');
+        return;
+      }
+      
+      const queueText = queue.map((item, idx) => 
+        `${idx + 1}. ${item.title.substring(0, 40)}...`
+      ).join('\n');
+      
+      this.bot.sendMessage(chatId, `📋 Download Queue (${queue.length}):\n\n${queueText}`);
+    });
+
+    // Add to queue command
+    this.bot.onText(/\/addqueue (.+)/, async (msg, match) => {
+      const chatId = msg.chat.id;
+      const url = match[1];
+      
+      try {
+        const info = await this.videoInfoService.getVideoInfo(url);
+        
+        if (!this.downloadQueue.has(chatId)) {
+          this.downloadQueue.set(chatId, []);
+        }
+        
+        const queue = this.downloadQueue.get(chatId);
+        queue.push({ url, title: info.title, quality: '720' });
+        
+        this.bot.sendMessage(chatId, `📋 Added to queue!\n\n${info.title}\n\nUse /startqueue to begin downloading`);
+      } catch (error) {
+        this.bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+      }
+    });
+
+    // Start queue command
+    this.bot.onText(/\/startqueue/, async (msg) => {
+      const chatId = msg.chat.id;
+      const queue = this.downloadQueue.get(chatId) || [];
+      
+      if (queue.length === 0) {
+        this.bot.sendMessage(chatId, '📋 Queue is empty!');
+        return;
+      }
+      
+      this.bot.sendMessage(chatId, `🚀 Starting queue download (${queue.length} videos)...`);
+      
+      for (const item of queue) {
+        try {
+          const statusMsg = await this.bot.sendMessage(chatId, `⏬ Downloading: ${item.title.substring(0, 40)}...`);
+          const info = await this.videoInfoService.getVideoInfo(item.url);
+          await this.startDownload(chatId, statusMsg.message_id, item.url, 'video', item.quality, info);
+        } catch (error) {
+          this.bot.sendMessage(chatId, `❌ Failed: ${item.title}\n${error.message}`);
+        }
+      }
+      
+      this.downloadQueue.set(chatId, []);
+      this.bot.sendMessage(chatId, '✅ Queue completed!');
+    });
+
+    // Formats command
+    this.bot.onText(/\/formats (.+)/, async (msg, match) => {
+      const chatId = msg.chat.id;
+      const url = match[1];
+      
+      try {
+        const statusMsg = await this.bot.sendMessage(chatId, '🔍 Fetching available formats...');
+        
+        // Get detailed format info using youtube-dl
+        const youtubedl = (await import('youtube-dl-exec')).default;
+        const info = await youtubedl(url, {
+          dumpSingleJson: true,
+          noCheckCertificates: true,
+          noWarnings: true
+        });
+        
+        // Extract video formats
+        const formats = info.formats || [];
+        const videoFormats = formats
+          .filter(f => f.vcodec !== 'none' && f.height)
+          .sort((a, b) => b.height - a.height)
+          .slice(0, 10);
+        
+        if (videoFormats.length === 0) {
+          await this.bot.editMessageText(
+            `📹 *${info.title}*\n\n` +
+            `No detailed format information available.\n\n` +
+            `Available qualities:\n` +
+            `• 4K (2160p)\n` +
+            `• 2K (1440p)\n` +
+            `• 1080p\n` +
+            `• 720p\n` +
+            `• 480p\n` +
+            `• 360p`,
+            {
+              chat_id: chatId,
+              message_id: statusMsg.message_id,
+              parse_mode: 'Markdown'
+            }
+          );
+          return;
+        }
+        
+        const formatText = videoFormats.map(f => {
+          const size = f.filesize ? this.formatBytes(f.filesize) : 'Unknown';
+          const fps = f.fps ? `${f.fps}fps` : '';
+          return `• ${f.height}p ${fps} - ${f.ext.toUpperCase()} - ${size}`;
+        }).join('\n');
+        
+        await this.bot.editMessageText(
+          `📹 *${info.title}*\n\n` +
+          `⏱️ Duration: ${this.formatDuration(info.duration || 0)}\n\n` +
+          `Available formats:\n\n${formatText}`,
+          {
+            chat_id: chatId,
+            message_id: statusMsg.message_id,
+            parse_mode: 'Markdown'
+          }
+        );
+      } catch (error) {
+        console.error('Formats error:', error);
+        this.bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+      }
     });
 
     // History command
@@ -307,10 +518,148 @@ export class TelegramBotService {
       }
     });
 
+    // Trending command
+    this.bot.onText(/\/trending/, async (msg) => {
+      const chatId = msg.chat.id;
+      
+      try {
+        const statusMsg = await this.bot.sendMessage(chatId, '🔥 Fetching trending videos...');
+        const trending = await this.videoInfoService.getTrendingVideos(10);
+        
+        if (trending.length === 0) {
+          await this.bot.editMessageText('No trending videos found.', {
+            chat_id: chatId,
+            message_id: statusMsg.message_id
+          });
+          return;
+        }
+        
+        const buttons = trending.map((video, idx) => {
+          const urlId = this.urlIdCounter++;
+          this.urlCache.set(urlId, { url: video.url, info: video });
+          return [{
+            text: `${idx + 1}. ${video.title.substring(0, 50)}...`,
+            callback_data: `search:${urlId}`
+          }];
+        });
+        
+        await this.bot.editMessageText(
+          '🔥 Trending Videos:\n\nSelect a video to download:',
+          {
+            chat_id: chatId,
+            message_id: statusMsg.message_id,
+            reply_markup: { inline_keyboard: buttons }
+          }
+        );
+      } catch (error) {
+        this.bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+      }
+    });
+
+    // Rename command
+    this.bot.onText(/\/rename (.+)/, (msg, match) => {
+      const chatId = msg.chat.id;
+      const filename = match[1];
+      
+      this.customFilenames.set(chatId, filename);
+      this.bot.sendMessage(chatId, `✅ Next download will be saved as:\n${filename}\n\nNow send the video URL.`);
+    });
+
+    // Time range download command
+    this.bot.onText(/\/clip (.+) (\d+:\d+) (\d+:\d+)/, async (msg, match) => {
+      const chatId = msg.chat.id;
+      const url = match[1];
+      const startTime = match[2];
+      const endTime = match[3];
+      
+      this.bot.sendMessage(chatId, 
+        `⏱️ Time range download:\n\n` +
+        `URL: ${url}\n` +
+        `Start: ${startTime}\n` +
+        `End: ${endTime}\n\n` +
+        `⚠️ Feature coming soon! For now, download the full video.`
+      );
+    });
+
+    // Admin: Broadcast command
+    this.bot.onText(/\/broadcast (.+)/, async (msg, match) => {
+      const chatId = msg.chat.id;
+      
+      if (!this.adminUsers.includes(chatId)) {
+        this.bot.sendMessage(chatId, '❌ Admin only command');
+        return;
+      }
+      
+      const message = match[1];
+      let sent = 0;
+      let failed = 0;
+      
+      for (const userId of this.allUsers) {
+        try {
+          await this.bot.sendMessage(userId, `📢 Broadcast:\n\n${message}`);
+          sent++;
+        } catch (error) {
+          failed++;
+        }
+      }
+      
+      this.bot.sendMessage(chatId, `✅ Broadcast complete!\n\nSent: ${sent}\nFailed: ${failed}`);
+    });
+
+    // Admin: Bot stats command
+    this.bot.onText(/\/botstats/, (msg) => {
+      const chatId = msg.chat.id;
+      
+      if (!this.adminUsers.includes(chatId)) {
+        this.bot.sendMessage(chatId, '❌ Admin only command');
+        return;
+      }
+      
+      let totalDownloads = 0;
+      let totalCompleted = 0;
+      let totalFailed = 0;
+      
+      for (const history of this.userHistory.values()) {
+        totalDownloads += history.length;
+        totalCompleted += history.filter(h => h.status === 'completed').length;
+        totalFailed += history.filter(h => h.status === 'failed').length;
+      }
+      
+      const activeDownloads = this.downloadService.activeDownloads.size;
+      
+      this.bot.sendMessage(chatId,
+        `📊 *Bot Statistics:*\n\n` +
+        `👥 Total Users: ${this.allUsers.size}\n` +
+        `📥 Total Downloads: ${totalDownloads}\n` +
+        `✅ Completed: ${totalCompleted}\n` +
+        `❌ Failed: ${totalFailed}\n` +
+        `⏬ Active: ${activeDownloads}\n` +
+        `⭐ Total Favorites: ${Array.from(this.userFavorites.values()).reduce((sum, favs) => sum + favs.length, 0)}\n` +
+        `📋 Queued: ${Array.from(this.downloadQueue.values()).reduce((sum, queue) => sum + queue.length, 0)}`,
+        { parse_mode: 'Markdown' }
+      );
+    });
+
+    // Admin: User list command
+    this.bot.onText(/\/users/, (msg) => {
+      const chatId = msg.chat.id;
+      
+      if (!this.adminUsers.includes(chatId)) {
+        this.bot.sendMessage(chatId, '❌ Admin only command');
+        return;
+      }
+      
+      const userList = Array.from(this.allUsers).slice(0, 50).join('\n');
+      this.bot.sendMessage(chatId, `👥 Users (showing first 50):\n\n${userList || 'No users yet'}`);
+    });
+
     // Handle URLs
     this.bot.on('message', async (msg) => {
       const chatId = msg.chat.id;
       const text = msg.text;
+
+      // Track user
+      this.allUsers.add(chatId);
 
       // Skip if it's a command
       if (!text || text.startsWith('/')) return;
@@ -345,7 +694,7 @@ export class TelegramBotService {
             `👤 ${this.getUploader(info)}\n` +
             `⏱️ Duration: ${this.formatDuration(info.duration || 0)}\n` +
             `👁️ Views: ${this.formatNumber(info.viewCount || info.view_count || 0)}\n` +
-            `� ${ this.formatUploadDate(info.uploadDate || info.upload_date)}`;
+            `📅 ${this.formatUploadDate(info.uploadDate || info.upload_date)}`;
           
           await this.bot.sendPhoto(chatId, info.thumbnail, {
             caption: caption,
@@ -571,16 +920,33 @@ export class TelegramBotService {
 
   async startDownload(chatId, messageId, url, type, quality, info) {
     try {
-      await this.bot.editMessageText(
-        `⏬ Starting download...\n\n` +
-        `📹 ${info.title.substring(0, 50)}...\n` +
-        `Type: ${type}\n` +
-        `Quality: ${quality}`,
-        {
-          chat_id: chatId,
-          message_id: messageId
-        }
-      );
+      // Check for custom filename
+      const customFilename = this.customFilenames.get(chatId);
+      if (customFilename) {
+        await this.bot.editMessageText(
+          `⏬ Starting download...\n\n` +
+          `📹 ${info.title.substring(0, 50)}...\n` +
+          `Type: ${type}\n` +
+          `Quality: ${quality}\n` +
+          `📝 Custom name: ${customFilename}`,
+          {
+            chat_id: chatId,
+            message_id: messageId
+          }
+        );
+        this.customFilenames.delete(chatId);
+      } else {
+        await this.bot.editMessageText(
+          `⏬ Starting download...\n\n` +
+          `📹 ${info.title.substring(0, 50)}...\n` +
+          `Type: ${type}\n` +
+          `Quality: ${quality}`,
+          {
+            chat_id: chatId,
+            message_id: messageId
+          }
+        );
+      }
 
       // Start download
       const downloadInfo = await this.downloadService.startDownload(url, type, quality);

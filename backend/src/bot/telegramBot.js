@@ -55,6 +55,30 @@ export class TelegramBotService {
         }
       });
       
+      // Set bot commands for Telegram menu
+      this.bot.setMyCommands([
+        { command: 'start', description: 'Start the bot' },
+        { command: 'help', description: 'Show all commands' },
+        { command: 'search', description: 'Search videos' },
+        { command: 'trending', description: 'View trending videos' },
+        { command: 'formats', description: 'Show available formats' },
+        { command: 'dl', description: 'Quick download (url quality)' },
+        { command: 'info', description: 'Get video details' },
+        { command: 'favorites', description: 'View favorites' },
+        { command: 'addfav', description: 'Add to favorites' },
+        { command: 'queue', description: 'View download queue' },
+        { command: 'addqueue', description: 'Add to queue' },
+        { command: 'startqueue', description: 'Start queue download' },
+        { command: 'history', description: 'View download history' },
+        { command: 'stats', description: 'View statistics' },
+        { command: 'settings', description: 'Bot settings' },
+        { command: 'cancel', description: 'Cancel current download' }
+      ]).then(() => {
+        console.log('✅ Bot commands registered in Telegram menu');
+      }).catch(err => {
+        console.error('Failed to set bot commands:', err);
+      });
+      
       // Handle polling errors gracefully
       this.bot.on('polling_error', (error) => {
         // Only log network errors once to avoid spam
@@ -81,13 +105,30 @@ export class TelegramBotService {
     // Start command
     this.bot.onText(/\/start/, (msg) => {
       const chatId = msg.chat.id;
+      const username = msg.from.first_name || 'there';
+      
       this.bot.sendMessage(chatId, 
-        '👋 Welcome to StreamedV3 Bot!\n\n' +
-        'Send me a video URL and I\'ll help you download it.\n\n' +
-        'Commands:\n' +
-        '/help - Show help\n' +
-        '/info <url> - Get video information\n' +
-        '/cancel - Cancel current download'
+        `╔═══════════════════════╗\n` +
+        `║   🎬 *StreamedV3 Bot*   ║\n` +
+        `╚═══════════════════════╝\n\n` +
+        `👋 Hey ${username}! Welcome aboard!\n\n` +
+        `🎯 *What I Can Do:*\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `📥 Download videos in any quality\n` +
+        `🎵 Extract audio from videos\n` +
+        `📝 Download subtitles\n` +
+        `🔍 Search & discover videos\n` +
+        `⭐ Save your favorites\n` +
+        `📋 Queue multiple downloads\n` +
+        `✂️ Split large files automatically\n\n` +
+        `🚀 *Quick Start:*\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `1️⃣ Send me any video URL\n` +
+        `2️⃣ Choose your quality\n` +
+        `3️⃣ Get your file!\n\n` +
+        `💡 Type /help to see all commands\n` +
+        `🔥 Try /trending for popular videos`,
+        { parse_mode: 'Markdown' }
       );
     });
 
@@ -95,39 +136,45 @@ export class TelegramBotService {
     this.bot.onText(/\/help/, (msg) => {
       const chatId = msg.chat.id;
       this.bot.sendMessage(chatId,
-        '📖 *How to use:*\n\n' +
-        '1️⃣ Send me a video URL (YouTube, etc.)\n' +
-        '2️⃣ Choose format (video/audio/subtitles)\n' +
-        '3️⃣ Select quality\n' +
-        '4️⃣ Wait for download to complete\n\n' +
-        '🎯 *Basic Commands:*\n' +
-        '/info <url> - Get video details\n' +
-        '/search <query> - Search videos\n' +
-        '/formats <url> - Show available formats\n' +
-        '/cancel - Cancel current download\n\n' +
-        '⚡ *Quick Commands:*\n' +
-        '/dl <url> <quality> - Quick download\n' +
-        '   Example: /dl https://... 720\n\n' +
-        '⭐ *Favorites:*\n' +
-        '/favorites - View favorites\n' +
-        '/addfav <url> - Add to favorites\n\n' +
-        '📋 *Queue:*\n' +
-        '/queue - View queue\n' +
-        '/addqueue <url> - Add to queue\n' +
-        '/startqueue - Start queue download\n\n' +
-        '📊 *History & Stats:*\n' +
-        '/history - View download history\n' +
-        '/stats - View your statistics\n' +
-        '/clear - Clear history\n\n' +
-        '⚙️ *Settings:*\n' +
-        '/settings - Bot settings\n' +
-        '/about - About this bot\n\n' +
-        '🔥 *Discover:*\n' +
-        '/trending - View trending videos\n\n' +
-        '✏️ *Advanced:*\n' +
-        '/rename <filename> - Custom filename\n' +
-        '/clip <url> <start> <end> - Time range\n' +
-        '   Example: /clip https://... 0:30 2:45',
+        `╔════════════════════════╗\n` +
+        `║   📖 *COMMAND GUIDE*   ║\n` +
+        `╚════════════════════════╝\n\n` +
+        
+        `🎯 *BASIC COMMANDS*\n` +
+        `┣━ /info <url> - Video details\n` +
+        `┣━ /search <query> - Search videos\n` +
+        `┣━ /formats <url> - Available formats\n` +
+        `┗━ /cancel - Cancel download\n\n` +
+        
+        `⚡ *QUICK DOWNLOAD*\n` +
+        `┗━ /dl <url> <quality>\n` +
+        `   💡 Example: /dl https://... 720\n\n` +
+        
+        `⭐ *FAVORITES*\n` +
+        `┣━ /favorites - View saved\n` +
+        `┗━ /addfav <url> - Add favorite\n\n` +
+        
+        `📋 *QUEUE SYSTEM*\n` +
+        `┣━ /queue - View queue\n` +
+        `┣━ /addqueue <url> - Add to queue\n` +
+        `┗━ /startqueue - Start downloads\n\n` +
+        
+        `📊 *HISTORY & STATS*\n` +
+        `┣━ /history - Recent downloads\n` +
+        `┣━ /stats - Your statistics\n` +
+        `┗━ /clear - Clear history\n\n` +
+        
+        `🔥 *DISCOVER*\n` +
+        `┗━ /trending - Popular videos\n\n` +
+        
+        `⚙️ *SETTINGS*\n` +
+        `┣━ /settings - Configure bot\n` +
+        `┣━ /rename <name> - Custom filename\n` +
+        `┗━ /about - Bot info\n\n` +
+        
+        `━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `💡 *TIP:* Just send a video URL\n` +
+        `   to start downloading!`,
         { parse_mode: 'Markdown' }
       );
     });
@@ -215,17 +262,41 @@ export class TelegramBotService {
     this.bot.onText(/\/about/, (msg) => {
       const chatId = msg.chat.id;
       this.bot.sendMessage(chatId,
-        '🤖 *StreamedV3 Bot*\n\n' +
-        '📥 Download videos from YouTube and other platforms\n' +
-        '🎵 Extract audio in high quality\n' +
-        '📝 Download subtitles\n' +
-        '🔍 Search and download\n' +
-        '📊 Track your download history\n' +
-        '✂️ Split large files automatically\n' +
-        '⭐ Save favorites\n\n' +
-        '💡 Powered by yt-dlp\n' +
-        '⚡ Fast and reliable\n\n' +
-        'Type /help for commands',
+        `╔═══════════════════════════╗\n` +
+        `║   🤖 *ABOUT STREAMEDV3*   ║\n` +
+        `╚═══════════════════════════╝\n\n` +
+        
+        `✨ *FEATURES*\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `📥 Multi-platform video downloads\n` +
+        `🎵 High-quality audio extraction\n` +
+        `📝 Subtitle downloads\n` +
+        `🔍 Smart search & discovery\n` +
+        `📊 Download history tracking\n` +
+        `✂️ Automatic file splitting\n` +
+        `⭐ Favorites management\n` +
+        `📋 Queue system\n` +
+        `⚙️ Customizable settings\n\n` +
+        
+        `🎯 *QUALITY OPTIONS*\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `🎬 360p, 480p, 720p, 1080p\n` +
+        `🎬 2K (1440p), 4K (2160p)\n` +
+        `🎵 Audio: Best & Medium\n\n` +
+        
+        `⚡ *POWERED BY*\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `🔧 yt-dlp (Latest)\n` +
+        `🎬 FFmpeg (Video processing)\n` +
+        `⚡ Node.js (Backend)\n\n` +
+        
+        `📊 *STATS*\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `🚀 Version: 1.0.0\n` +
+        `📱 Platform: Telegram\n` +
+        `🌐 Multi-platform support\n\n` +
+        
+        `💡 Type /help for all commands`,
         { parse_mode: 'Markdown' }
       );
     });
@@ -438,7 +509,14 @@ export class TelegramBotService {
       const history = this.userHistory.get(chatId) || [];
       
       if (history.length === 0) {
-        this.bot.sendMessage(chatId, '📊 No statistics yet. Start downloading!');
+        this.bot.sendMessage(chatId, 
+          `╔═══════════════════════╗\n` +
+          `║   📊 *STATISTICS*   ║\n` +
+          `╚═══════════════════════╝\n\n` +
+          `📭 No downloads yet!\n\n` +
+          `💡 Send a video URL to start`,
+          { parse_mode: 'Markdown' }
+        );
         return;
       }
       
@@ -446,14 +524,27 @@ export class TelegramBotService {
       const failed = history.filter(h => h.status === 'failed').length;
       const videos = history.filter(h => h.type === 'video').length;
       const audios = history.filter(h => h.type === 'audio').length;
+      const successRate = history.length > 0 ? Math.round((completed / history.length) * 100) : 0;
       
       this.bot.sendMessage(chatId,
-        `📊 Your Statistics:\n\n` +
-        `✅ Completed: ${completed}\n` +
-        `❌ Failed: ${failed}\n` +
-        `🎥 Videos: ${videos}\n` +
-        `🎵 Audios: ${audios}\n` +
-        `📦 Total: ${history.length}`
+        `╔═══════════════════════╗\n` +
+        `║   📊 *YOUR STATS*   ║\n` +
+        `╚═══════════════════════╝\n\n` +
+        
+        `📈 *OVERVIEW*\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `📦 Total Downloads: *${history.length}*\n` +
+        `✅ Completed: *${completed}*\n` +
+        `❌ Failed: *${failed}*\n` +
+        `🎯 Success Rate: *${successRate}%*\n\n` +
+        
+        `🎬 *BY TYPE*\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `🎥 Videos: *${videos}*\n` +
+        `🎵 Audios: *${audios}*\n\n` +
+        
+        `💡 Keep downloading!`,
+        { parse_mode: 'Markdown' }
       );
     });
 
@@ -696,31 +787,78 @@ export class TelegramBotService {
             `👁️ Views: ${this.formatNumber(info.viewCount || info.view_count || 0)}\n` +
             `📅 ${this.formatUploadDate(info.uploadDate || info.upload_date)}`;
           
-          await this.bot.sendPhoto(chatId, info.thumbnail, {
-            caption: caption,
-            parse_mode: 'Markdown'
-          });
+          // Validate thumbnail URL
+          if (info.thumbnail && info.thumbnail.startsWith('http')) {
+            await this.bot.sendPhoto(chatId, info.thumbnail, {
+              caption: caption,
+              parse_mode: 'Markdown'
+            });
+          } else {
+            // Send text only if thumbnail is invalid
+            await this.bot.sendMessage(chatId, caption, {
+              parse_mode: 'Markdown'
+            });
+          }
         } catch (photoError) {
           console.log('Could not send thumbnail:', photoError.message);
+          // Send text only as fallback
+          try {
+            const caption = `📹 *${info.title}*\n\n` +
+              `👤 ${this.getUploader(info)}\n` +
+              `⏱️ Duration: ${this.formatDuration(info.duration || 0)}\n` +
+              `👁️ Views: ${this.formatNumber(info.viewCount || info.view_count || 0)}\n` +
+              `📅 ${this.formatUploadDate(info.uploadDate || info.upload_date)}`;
+            
+            await this.bot.sendMessage(chatId, caption, {
+              parse_mode: 'Markdown'
+            });
+          } catch (e) {
+            console.error('Failed to send video info:', e);
+          }
         }
       }
       
-      // Show format selection
+      // Show all available resolutions directly
+      const resolutionButtons = [
+        [
+          { text: '⭐ 720p (Best)', callback_data: `quality:video:720:${urlId}` },
+          { text: '📱 480p', callback_data: `quality:video:480:${urlId}` }
+        ],
+        [
+          { text: '💾 360p', callback_data: `quality:video:360:${urlId}` },
+          { text: '� 10800p', callback_data: `quality:video:1080:${urlId}` }
+        ],
+        [
+          { text: '🎥 2K (1440p)', callback_data: `quality:video:2k:${urlId}` },
+          { text: '�️ K4K (2160p)', callback_data: `quality:video:4k:${urlId}` }
+        ],
+        [
+          { text: '🎵 Audio (Best)', callback_data: `quality:audio:best:${urlId}` },
+          { text: '� Audioo (Medium)', callback_data: `quality:audio:medium:${urlId}` }
+        ],
+        [
+          { text: '📝 Subtitles Only', callback_data: `format:subtitles:${urlId}` }
+        ]
+      ];
+      
       await this.bot.editMessageText(
-        `Choose download format:`,
+        `╔═══════════════════════════╗\n` +
+        `║   🎬 *QUALITY SELECTION*   ║\n` +
+        `╚═══════════════════════════╝\n\n` +
+        `📹 *${info.title.substring(0, 50)}...*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `💡 *RECOMMENDATIONS*\n` +
+        `⭐ 720p - Best balance\n` +
+        `📱 480p - Small & fast\n` +
+        `💾 360p - Smallest size\n\n` +
+        `⚠️ Files >50MB will be split\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
         {
           chat_id: chatId,
           message_id: statusMsg.message_id,
+          parse_mode: 'Markdown',
           reply_markup: {
-            inline_keyboard: [
-              [
-                { text: '🎥 Video', callback_data: `format:video:${urlId}` },
-                { text: '🎵 Audio', callback_data: `format:audio:${urlId}` }
-              ],
-              [
-                { text: '📝 Subtitles', callback_data: `format:subtitles:${urlId}` }
-              ]
-            ]
+            inline_keyboard: resolutionButtons
           }
         }
       );

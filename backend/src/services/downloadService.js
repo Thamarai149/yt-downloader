@@ -29,12 +29,17 @@ export class DownloadService {
     const downloadId = uuidv4();
     
     try {
+      console.log(`Starting download: ${url}, type: ${type}, quality: ${quality}`);
+      
       // Get video info first
       const info = await youtubedl(url, {
         dumpSingleJson: true,
         noCheckCertificates: true,
-        noWarnings: true
+        noWarnings: true,
+        addHeader: ['referer:youtube.com', 'user-agent:googlebot']
       });
+      
+      console.log(`Video info retrieved: ${info.title}`);
 
       const filename = sanitize(info.title);
       const ext = type === 'audio' ? 'mp3' : 'mp4';
@@ -176,12 +181,18 @@ export class DownloadService {
         this.emitProgress(downloadId, downloadInfo);
       }
 
-      const videoFormat = quality === '4k' ? 'bestvideo[height<=2160][ext=mp4]' : 'bestvideo[height<=1440][ext=mp4]';
+      const videoFormat = quality === '4k' 
+        ? 'bestvideo[height<=2160][ext=mp4]/bestvideo[height<=2160]' 
+        : 'bestvideo[height<=1440][ext=mp4]/bestvideo[height<=1440]';
+      
+      console.log(`Downloading ${quality} video with format: ${videoFormat}`);
+      
       await youtubedl(url, {
         output: videoTemp,
         format: videoFormat,
         noCheckCertificates: true,
-        noWarnings: true
+        noWarnings: true,
+        addHeader: ['referer:youtube.com', 'user-agent:googlebot']
       });
 
       // Download audio
@@ -191,11 +202,14 @@ export class DownloadService {
         this.emitProgress(downloadId, downloadInfo);
       }
 
+      console.log('Downloading audio...');
+      
       await youtubedl(url, {
         output: audioTemp,
-        format: 'bestaudio[ext=m4a]',
+        format: 'bestaudio[ext=m4a]/bestaudio',
         noCheckCertificates: true,
-        noWarnings: true
+        noWarnings: true,
+        addHeader: ['referer:youtube.com', 'user-agent:googlebot']
       });
 
       // Merge with FFmpeg
@@ -217,10 +231,24 @@ export class DownloadService {
         this.emitProgress(downloadId, downloadInfo);
       }
     } catch (error) {
+      console.error(`Error in downloadAndMerge for ${quality}:`, error.message);
+      
       // Clean up temp files on error
-      if (fs.existsSync(videoTemp)) fs.unlinkSync(videoTemp);
-      if (fs.existsSync(audioTemp)) fs.unlinkSync(audioTemp);
-      throw error;
+      if (fs.existsSync(videoTemp)) {
+        try { fs.unlinkSync(videoTemp); } catch (e) {}
+      }
+      if (fs.existsSync(audioTemp)) {
+        try { fs.unlinkSync(audioTemp); } catch (e) {}
+      }
+      
+      // Provide helpful error message
+      if (error.message.includes('ffmpeg')) {
+        throw new Error(`FFmpeg not found. Install FFmpeg to download ${quality} videos.`);
+      } else if (error.message.includes('format')) {
+        throw new Error(`${quality} quality not available for this video. Try a lower quality.`);
+      } else {
+        throw error;
+      }
     }
   }
 

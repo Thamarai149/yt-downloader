@@ -5,30 +5,44 @@ import { isValidYouTubeUrl } from '../utils/youtubeValidator.js';
 export class VideoInfoService {
   async getVideoInfo(url) {
     try {
-      if (!isValidYouTubeUrl(url)) {
-        throw new AppError('Invalid YouTube URL', 400);
+      // Basic URL validation - allow any valid URL, not just YouTube
+      if (!url || !url.trim()) {
+        throw new AppError('URL is required', 400);
       }
+
+      // Try to parse as URL
+      try {
+        new URL(url);
+      } catch (e) {
+        throw new AppError('Invalid URL format', 400);
+      }
+
+      console.log('Fetching video info for:', url);
 
       const info = await youtubedl(url, {
         dumpSingleJson: true,
         noCheckCertificates: true,
         noWarnings: true,
-        skipDownload: true
+        skipDownload: true,
+        addHeader: ['referer:youtube.com', 'user-agent:googlebot']
       });
+
+      console.log('Video info fetched successfully:', info.title);
 
       return {
         id: info.id,
         title: info.title,
         duration: info.duration,
-        uploader: info.uploader,
-        viewCount: info.view_count,
+        uploader: info.uploader || info.channel || 'Unknown',
+        viewCount: info.view_count || 0,
         thumbnail: info.thumbnail,
         description: info.description?.substring(0, 300),
         uploadDate: info.upload_date,
-        url: info.webpage_url,
+        url: info.webpage_url || url,
         formats: this.extractFormats(info.formats)
       };
     } catch (error) {
+      console.error('Video info error:', error.message);
       throw new AppError(`Failed to get video info: ${error.message}`, 500);
     }
   }

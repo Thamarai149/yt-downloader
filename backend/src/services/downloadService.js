@@ -31,9 +31,9 @@ export class DownloadService {
     try {
       console.log(`Starting download: ${url}, type: ${type}, quality: ${quality}`);
       
-      // Block 2K and 4K downloads
+      // Log 2K and 4K downloads (large files)
       if (quality === '2k' || quality === '4k') {
-        throw new AppError(`${quality.toUpperCase()} downloads are disabled. Files are too large for Telegram. Please use 1080p or lower.`, 400);
+        console.log(`⚠️ Large file download requested: ${quality.toUpperCase()}`);
       }
       
       // Get video info first
@@ -119,9 +119,12 @@ export class DownloadService {
       options.audioFormat = 'mp3';
       options.audioQuality = 0;
     } else {
-      // Block 2K/4K downloads (safety check)
-      if (quality === '2k' || quality === '4k') {
-        throw new Error(`${quality.toUpperCase()} downloads are disabled`);
+      // For 2K/4K, download video and audio separately, then merge with FFmpeg
+      const needsMerging = quality === '4k' || quality === '2k';
+      
+      if (needsMerging) {
+        await this.downloadAndMerge(url, quality, outputPath, downloadId);
+        return;
       }
       
       // For 1080p and below, use muxed streams (video+audio combined)
@@ -134,7 +137,7 @@ export class DownloadService {
       } else if (quality === '360') {
         options.format = 'bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360]';
       } else {
-        options.format = 'best[height<=1080]'; // Limit "best" to 1080p max
+        options.format = 'best'; // Best available quality
       }
     }
 

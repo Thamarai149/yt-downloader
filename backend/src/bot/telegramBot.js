@@ -1005,7 +1005,11 @@ export class TelegramBotService {
                 { text: '📺 1080p (HD)', callback_data: `quality:${type}:1080:${urlId}` }
               ],
               [
-                { text: '�  Best Available', callback_data: `quality:${type}:best:${urlId}` }
+                { text: '🎥 2K (1440p)', callback_data: `quality:${type}:2k:${urlId}` },
+                { text: '🎬 4K (2160p)', callback_data: `quality:${type}:4k:${urlId}` }
+              ],
+              [
+                { text: '🌟 Best Available', callback_data: `quality:${type}:best:${urlId}` }
               ]
             ]
           : [
@@ -1077,23 +1081,19 @@ export class TelegramBotService {
           throw new Error('URL expired. Please send the link again.');
         }
         
-        // Block 2K and 4K downloads
+        // Warn about 2K and 4K downloads
         if (quality === '2k' || quality === '4k') {
           await this.bot.editMessageText(
-            `❌ ${quality.toUpperCase()} downloads are disabled\n\n` +
-            `⚠️ High resolution files are too large for Telegram\n\n` +
-            `💡 Please choose:\n` +
-            `• 1080p (Full HD)\n` +
-            `• 720p (Recommended)\n` +
-            `• 480p or 360p (Smaller files)\n\n` +
-            `Send the URL again to select quality.`,
+            `⚠️ ${quality.toUpperCase()} Download Warning\n\n` +
+            `📦 Large file size (100MB-2GB)\n` +
+            `⏱️ Download time: 5-15 minutes\n` +
+            `✂️ Will be split if >50MB\n\n` +
+            `Starting download...`,
             {
               chat_id: chatId,
               message_id: query.message.message_id
             }
           );
-          this.urlCache.delete(parseInt(urlId));
-          return;
         }
         
         await this.startDownload(chatId, query.message.message_id, cached.url, type, quality, cached.info);
@@ -1499,8 +1499,23 @@ export class TelegramBotService {
         
         console.log(`File sent successfully`);
 
+        // Send completion message with details
+        const qualityText = downloadInfo.quality === '4k' ? '4K (2160p)' :
+                           downloadInfo.quality === '2k' ? '2K (1440p)' :
+                           downloadInfo.quality === '1080' ? '1080p (Full HD)' :
+                           downloadInfo.quality === '720' ? '720p (HD)' :
+                           downloadInfo.quality === '480' ? '480p' :
+                           downloadInfo.quality === '360' ? '360p' : 'Best';
+        
+        const typeEmoji = downloadInfo.type === 'audio' ? '🎵' : '🎬';
+        
         await this.bot.editMessageText(
-          `✅ Sent successfully!\n\n📦 Size: ${this.formatBytes(fileSize)}`,
+          `✅ Download Complete!\n\n` +
+          `${typeEmoji} ${downloadInfo.title.substring(0, 50)}...\n\n` +
+          `📊 Quality: ${qualityText}\n` +
+          `📦 Size: ${this.formatBytes(fileSize)}\n` +
+          `⏱️ Type: ${downloadInfo.type.toUpperCase()}\n\n` +
+          `✨ File sent successfully!`,
           {
             chat_id: chatId,
             message_id: messageId

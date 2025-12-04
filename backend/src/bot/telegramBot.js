@@ -32,6 +32,20 @@ export class TelegramBotService {
     };
   }
 
+  // Sanitize text for UTF-8 encoding (remove problematic characters)
+  sanitizeText(text) {
+    if (!text) return '';
+    
+    // Remove or replace problematic characters that cause UTF-8 encoding issues
+    return text
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
+      .replace(/[\uD800-\uDFFF]/g, '') // Remove unpaired surrogates
+      .replace(/[\uFFFD\uFFFE\uFFFF]/g, '') // Remove replacement characters
+      .replace(/[^\u0020-\u007E\u00A0-\uD7FF\uE000-\uFFFD]/g, '') // Keep only valid UTF-8 ranges
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim();
+  }
+
   initialize() {
     if (!config.telegramBotToken) {
       console.warn('⚠️  Telegram bot token not configured. Bot will not start.');
@@ -41,18 +55,20 @@ export class TelegramBotService {
     try {
       this.bot = new TelegramBot(config.telegramBotToken, { 
         polling: {
-          interval: 2000,
+          interval: 3000,
           autoStart: true,
           params: {
-            timeout: 10
+            timeout: 30
           }
         },
         request: {
           agentOptions: {
             keepAlive: true,
             family: 4 // Force IPv4 to avoid DNS issues
-          }
-        }
+          },
+          timeout: 30000
+        },
+        filepath: false
       });
       
       // Set bot commands for Telegram menu
@@ -82,12 +98,16 @@ export class TelegramBotService {
       // Handle polling errors gracefully
       this.bot.on('polling_error', (error) => {
         // Only log network errors once to avoid spam
-        if (error.code === 'EFATAL' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
-          if (!this.lastErrorTime || Date.now() - this.lastErrorTime > 30000) {
+        if (error.code === 'EFATAL' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT' || error.code === 'EAI_AGAIN') {
+          if (!this.lastErrorTime || Date.now() - this.lastErrorTime > 60000) {
             console.error('⚠️  Telegram connection issue:', error.code);
-            console.log('💡 The bot will keep trying to reconnect...');
+            console.log('💡 The bot will automatically reconnect...');
             this.lastErrorTime = Date.now();
           }
+          // Don't throw - let polling continue
+          return;
+        } else if (error.message && error.message.includes('409')) {
+          console.error('⚠️  Another bot instance is running. Please stop other instances.');
         } else {
           console.error('⚠️  Telegram error:', error.message);
         }
@@ -108,27 +128,25 @@ export class TelegramBotService {
       const username = msg.from.first_name || 'there';
       
       this.bot.sendMessage(chatId, 
-        `╔═══════════════════════╗\n` +
-        `║   🎬 *StreamedV3 Bot*   ║\n` +
-        `╚═══════════════════════╝\n\n` +
+        `🎬 StreamedV3 Bot\n` +
+        `========================\n\n` +
         `👋 Hey ${username}! Welcome aboard!\n\n` +
-        `🎯 *What I Can Do:*\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `🎯 What I Can Do:\n` +
+        `------------------------\n` +
         `📥 Download videos in any quality\n` +
         `🎵 Extract audio from videos\n` +
         `📝 Download subtitles\n` +
-        `🔍 Search & discover videos\n` +
+        `🔍 Search and discover videos\n` +
         `⭐ Save your favorites\n` +
         `📋 Queue multiple downloads\n` +
         `✂️ Split large files automatically\n\n` +
-        `🚀 *Quick Start:*\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `🚀 Quick Start:\n` +
+        `------------------------\n` +
         `1️⃣ Send me any video URL\n` +
         `2️⃣ Choose your quality\n` +
         `3️⃣ Get your file!\n\n` +
         `💡 Type /help to see all commands\n` +
-        `🔥 Try /trending for popular videos`,
-        { parse_mode: 'Markdown' }
+        `🔥 Try /trending for popular videos`
       );
     });
 
@@ -136,46 +154,44 @@ export class TelegramBotService {
     this.bot.onText(/\/help/, (msg) => {
       const chatId = msg.chat.id;
       this.bot.sendMessage(chatId,
-        `╔════════════════════════╗\n` +
-        `║   📖 *COMMAND GUIDE*   ║\n` +
-        `╚════════════════════════╝\n\n` +
+        `📖 COMMAND GUIDE\n` +
+        `========================\n\n` +
         
-        `🎯 *BASIC COMMANDS*\n` +
-        `┣━ /info <url> - Video details\n` +
-        `┣━ /search <query> - Search videos\n` +
-        `┣━ /formats <url> - Available formats\n` +
-        `┗━ /cancel - Cancel download\n\n` +
+        `🎯 BASIC COMMANDS\n` +
+        `• /info <url> - Video details\n` +
+        `• /search <query> - Search videos\n` +
+        `• /formats <url> - Available formats\n` +
+        `• /cancel - Cancel download\n\n` +
         
-        `⚡ *QUICK DOWNLOAD*\n` +
-        `┗━ /dl <url> <quality>\n` +
-        `   💡 Example: /dl https://... 720\n\n` +
+        `⚡ QUICK DOWNLOAD\n` +
+        `• /dl <url> <quality>\n` +
+        `  💡 Example: /dl https://... 720\n\n` +
         
-        `⭐ *FAVORITES*\n` +
-        `┣━ /favorites - View saved\n` +
-        `┗━ /addfav <url> - Add favorite\n\n` +
+        `⭐ FAVORITES\n` +
+        `• /favorites - View saved\n` +
+        `• /addfav <url> - Add favorite\n\n` +
         
-        `📋 *QUEUE SYSTEM*\n` +
-        `┣━ /queue - View queue\n` +
-        `┣━ /addqueue <url> - Add to queue\n` +
-        `┗━ /startqueue - Start downloads\n\n` +
+        `📋 QUEUE SYSTEM\n` +
+        `• /queue - View queue\n` +
+        `• /addqueue <url> - Add to queue\n` +
+        `• /startqueue - Start downloads\n\n` +
         
-        `📊 *HISTORY & STATS*\n` +
-        `┣━ /history - Recent downloads\n` +
-        `┣━ /stats - Your statistics\n` +
-        `┗━ /clear - Clear history\n\n` +
+        `📊 HISTORY & STATS\n` +
+        `• /history - Recent downloads\n` +
+        `• /stats - Your statistics\n` +
+        `• /clear - Clear history\n\n` +
         
-        `🔥 *DISCOVER*\n` +
-        `┗━ /trending - Popular videos\n\n` +
+        `🔥 DISCOVER\n` +
+        `• /trending - Popular videos\n\n` +
         
-        `⚙️ *SETTINGS*\n` +
-        `┣━ /settings - Configure bot\n` +
-        `┣━ /rename <name> - Custom filename\n` +
-        `┗━ /about - Bot info\n\n` +
+        `⚙️ SETTINGS\n` +
+        `• /settings - Configure bot\n` +
+        `• /rename <name> - Custom filename\n` +
+        `• /about - Bot info\n\n` +
         
-        `━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `💡 *TIP:* Just send a video URL\n` +
-        `   to start downloading!`,
-        { parse_mode: 'Markdown' }
+        `========================\n` +
+        `💡 TIP: Just send a video URL\n` +
+        `   to start downloading!`
       );
     });
 
@@ -199,8 +215,13 @@ export class TelegramBotService {
           const buttons = results.entries.map((video, idx) => {
             const urlId = this.urlIdCounter++;
             this.urlCache.set(urlId, { url: video.webpage_url, info: video });
+            
+            // Sanitize title for UTF-8 encoding
+            const sanitizedTitle = this.sanitizeText(video.title || 'Untitled');
+            const truncatedTitle = sanitizedTitle.substring(0, 50);
+            
             return [{
-              text: `${idx + 1}. ${video.title.substring(0, 50)}...`,
+              text: `${idx + 1}. ${truncatedTitle}${sanitizedTitle.length > 50 ? '...' : ''}`,
               callback_data: `search:${urlId}`
             }];
           });
@@ -262,42 +283,39 @@ export class TelegramBotService {
     this.bot.onText(/\/about/, (msg) => {
       const chatId = msg.chat.id;
       this.bot.sendMessage(chatId,
-        `╔═══════════════════════════╗\n` +
-        `║   🤖 *ABOUT STREAMEDV3*   ║\n` +
-        `╚═══════════════════════════╝\n\n` +
+        `🤖 ABOUT STREAMEDV3\n` +
+        `===========================\n\n` +
         
-        `✨ *FEATURES*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `✨ FEATURES\n` +
+        `========================\n` +
         `📥 Multi-platform video downloads\n` +
         `🎵 High-quality audio extraction\n` +
         `📝 Subtitle downloads\n` +
-        `🔍 Smart search & discovery\n` +
-        `📊 Download history tracking\n` +
+        `� Smatrt search & discovery\n` +
+        `� Dmownload history tracking\n` +
         `✂️ Automatic file splitting\n` +
         `⭐ Favorites management\n` +
         `📋 Queue system\n` +
         `⚙️ Customizable settings\n\n` +
         
-        `🎯 *QUALITY OPTIONS*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `🎯 QUALITY OPTIONS\n` +
+        `========================\n` +
         `🎬 360p, 480p, 720p, 1080p\n` +
-        `🎬 2K (1440p), 4K (2160p)\n` +
-        `🎵 Audio: Best & Medium\n\n` +
+        `�  Audio: Best & Medium\n\n` +
         
-        `⚡ *POWERED BY*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `⚡ POWERED BY\n` +
+        `========================\n` +
         `🔧 yt-dlp (Latest)\n` +
         `🎬 FFmpeg (Video processing)\n` +
         `⚡ Node.js (Backend)\n\n` +
         
-        `📊 *STATS*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `📊 STATS\n` +
+        `========================\n` +
         `🚀 Version: 1.0.0\n` +
-        `📱 Platform: Telegram\n` +
+        `� Platiform: Telegram\n` +
         `🌐 Multi-platform support\n\n` +
         
-        `💡 Type /help for all commands`,
-        { parse_mode: 'Markdown' }
+        `💡 Type /help for all commands`
       );
     });
 
@@ -510,12 +528,10 @@ export class TelegramBotService {
       
       if (history.length === 0) {
         this.bot.sendMessage(chatId, 
-          `╔═══════════════════════╗\n` +
-          `║   📊 *STATISTICS*   ║\n` +
-          `╚═══════════════════════╝\n\n` +
+          `📊 STATISTICS\n` +
+          `=======================\n\n` +
           `📭 No downloads yet!\n\n` +
-          `💡 Send a video URL to start`,
-          { parse_mode: 'Markdown' }
+          `� Send a lvideo URL to start`
         );
         return;
       }
@@ -527,24 +543,22 @@ export class TelegramBotService {
       const successRate = history.length > 0 ? Math.round((completed / history.length) * 100) : 0;
       
       this.bot.sendMessage(chatId,
-        `╔═══════════════════════╗\n` +
-        `║   📊 *YOUR STATS*   ║\n` +
-        `╚═══════════════════════╝\n\n` +
+        `📊 YOUR STATS\n` +
+        `=======================\n\n` +
         
-        `📈 *OVERVIEW*\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
-        `📦 Total Downloads: *${history.length}*\n` +
-        `✅ Completed: *${completed}*\n` +
-        `❌ Failed: *${failed}*\n` +
-        `🎯 Success Rate: *${successRate}%*\n\n` +
+        `📈 OVERVIEW\n` +
+        `====================\n` +
+        `� Total DWownloads: ${history.length}\n` +
+        `✅ Completed: ${completed}\n` +
+        `❌ Failed: ${failed}\n` +
+        `🎯 Success Rate: ${successRate}%\n\n` +
         
-        `🎬 *BY TYPE*\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
-        `🎥 Videos: *${videos}*\n` +
-        `🎵 Audios: *${audios}*\n\n` +
+        `�  BY TYPE\n` +
+        `====================\n` +
+        `� VideYos: ${videos}\n` +
+        `🎵 Audios: ${audios}\n\n` +
         
-        `💡 Keep downloading!`,
-        { parse_mode: 'Markdown' }
+        `💡 Keep downloading!`
       );
     });
 
@@ -628,8 +642,13 @@ export class TelegramBotService {
         const buttons = trending.map((video, idx) => {
           const urlId = this.urlIdCounter++;
           this.urlCache.set(urlId, { url: video.url, info: video });
+          
+          // Sanitize title for UTF-8 encoding
+          const sanitizedTitle = this.sanitizeText(video.title || 'Untitled');
+          const truncatedTitle = sanitizedTitle.substring(0, 50);
+          
           return [{
-            text: `${idx + 1}. ${video.title.substring(0, 50)}...`,
+            text: `${idx + 1}. ${truncatedTitle}${sanitizedTitle.length > 50 ? '...' : ''}`,
             callback_data: `search:${urlId}`
           }];
         });
@@ -643,7 +662,8 @@ export class TelegramBotService {
           }
         );
       } catch (error) {
-        this.bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+        console.error('Trending command error:', error);
+        this.bot.sendMessage(chatId, `❌ Error fetching trending videos: ${error.message}`);
       }
     });
 
@@ -778,7 +798,7 @@ export class TelegramBotService {
       const urlId = this.urlIdCounter++;
       this.urlCache.set(urlId, { url, info });
       
-      // Send thumbnail if available
+      // Send thumbnail with video info and download button
       if (info.thumbnail) {
         try {
           const caption = `📹 *${info.title}*\n\n` +
@@ -818,47 +838,22 @@ export class TelegramBotService {
         }
       }
       
-      // Show all available resolutions directly
-      const resolutionButtons = [
-        [
-          { text: '⭐ 720p (Best)', callback_data: `quality:video:720:${urlId}` },
-          { text: '📱 480p', callback_data: `quality:video:480:${urlId}` }
-        ],
-        [
-          { text: '💾 360p', callback_data: `quality:video:360:${urlId}` },
-          { text: '� 10800p', callback_data: `quality:video:1080:${urlId}` }
-        ],
-        [
-          { text: '🎥 2K (1440p)', callback_data: `quality:video:2k:${urlId}` },
-          { text: '�️ K4K (2160p)', callback_data: `quality:video:4k:${urlId}` }
-        ],
-        [
-          { text: '🎵 Audio (Best)', callback_data: `quality:audio:best:${urlId}` },
-          { text: '� Audioo (Medium)', callback_data: `quality:audio:medium:${urlId}` }
-        ],
-        [
-          { text: '📝 Subtitles Only', callback_data: `format:subtitles:${urlId}` }
-        ]
-      ];
-      
+      // Show download button to start the download process
       await this.bot.editMessageText(
-        `╔═══════════════════════════╗\n` +
-        `║   🎬 *QUALITY SELECTION*   ║\n` +
-        `╚═══════════════════════════╝\n\n` +
-        `📹 *${info.title.substring(0, 50)}...*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `💡 *RECOMMENDATIONS*\n` +
-        `⭐ 720p - Best balance\n` +
-        `📱 480p - Small & fast\n` +
-        `💾 360p - Smallest size\n\n` +
-        `⚠️ Files >50MB will be split\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `✅ Video found!\n\n` +
+        `📹 ${info.title.substring(0, 60)}...\n\n` +
+        `⏱️ Duration: ${this.formatDuration(info.duration || 0)}\n` +
+        `👁️ Views: ${this.formatNumber(info.viewCount || info.view_count || 0)}\n\n` +
+        `Click the button below to start downloading:`,
         {
           chat_id: chatId,
           message_id: statusMsg.message_id,
-          parse_mode: 'Markdown',
           reply_markup: {
-            inline_keyboard: resolutionButtons
+            inline_keyboard: [
+              [
+                { text: '📥 Download Video', callback_data: `download:${urlId}` }
+              ]
+            ]
           }
         }
       );
@@ -872,17 +867,30 @@ export class TelegramBotService {
     const data = query.data;
 
     try {
-      if (data.startsWith('search:')) {
+      // Answer callback query immediately to prevent timeout
+      // This must be done within 30 seconds of the button click
+      try {
+        await this.bot.answerCallbackQuery(query.id);
+      } catch (answerError) {
+        // Ignore timeout errors - query is too old
+        if (!answerError.message.includes('query is too old')) {
+          console.error('Error answering callback query:', answerError.message);
+        }
+        // Continue processing even if answer fails
+      }
+
+      if (data.startsWith('download:')) {
         const urlId = parseInt(data.split(':')[1]);
         const cached = this.urlCache.get(urlId);
         
         if (!cached) {
-          throw new Error('Search result expired. Please search again.');
+          throw new Error('URL expired. Please send the link again.');
         }
         
-        // Show format selection for search result
+        // Show format selection (Video/Audio/Subtitles)
         await this.bot.editMessageText(
-          `📹 *${cached.info.title}*\n\nChoose download format:`,
+          `📹 *${cached.info.title.substring(0, 60)}...*\n\n` +
+          `Choose download format:`,
           {
             chat_id: chatId,
             message_id: query.message.message_id,
@@ -890,11 +898,37 @@ export class TelegramBotService {
             reply_markup: {
               inline_keyboard: [
                 [
-                  { text: '🎥 Video', callback_data: `format:video:${urlId}` },
+                  { text: '🎬 Video', callback_data: `format:video:${urlId}` }
+                ],
+                [
                   { text: '🎵 Audio', callback_data: `format:audio:${urlId}` }
                 ],
                 [
                   { text: '📝 Subtitles', callback_data: `format:subtitles:${urlId}` }
+                ]
+              ]
+            }
+          }
+        );
+      } else if (data.startsWith('search:')) {
+        const urlId = parseInt(data.split(':')[1]);
+        const cached = this.urlCache.get(urlId);
+        
+        if (!cached) {
+          throw new Error('Search result expired. Please search again.');
+        }
+        
+        // Show download button for search results
+        await this.bot.editMessageText(
+          `📹 *${cached.info.title}*\n\nClick to download:`,
+          {
+            chat_id: chatId,
+            message_id: query.message.message_id,
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '📥 Download Video', callback_data: `download:${urlId}` }
                 ]
               ]
             }
@@ -909,21 +943,12 @@ export class TelegramBotService {
         if (setting === 'autodelete') {
           settings.autoDelete = !settings.autoDelete;
           this.userSettings.set(chatId, settings);
-          await this.bot.answerCallbackQuery(query.id, { 
-            text: `Auto-delete ${settings.autoDelete ? 'enabled' : 'disabled'}` 
-          });
         } else if (setting === 'quality') {
           settings.defaultQuality = parts[2];
           this.userSettings.set(chatId, settings);
-          await this.bot.answerCallbackQuery(query.id, { 
-            text: `Default quality set to ${parts[2]}` 
-          });
         } else if (setting === 'notifications') {
           settings.notifications = !settings.notifications;
           this.userSettings.set(chatId, settings);
-          await this.bot.answerCallbackQuery(query.id, { 
-            text: `Notifications ${settings.notifications ? 'enabled' : 'disabled'}` 
-          });
         }
         
         // Refresh settings display
@@ -965,31 +990,43 @@ export class TelegramBotService {
           }
           await this.downloadSubtitles(chatId, query.message.message_id, cached.url, cached.info);
           this.urlCache.delete(parseInt(urlId));
-          await this.bot.answerCallbackQuery(query.id);
           return;
         }
         
-        // Show quality selection with file size estimates
+        // Show quality/resolution selection (removed 2K and 4K options)
         const keyboard = type === 'video' 
           ? [
-              [{ text: '720p (Recommended)', callback_data: `quality:${type}:720:${urlId}` }],
-              [{ text: '480p (Small)', callback_data: `quality:${type}:480:${urlId}` }],
-              [{ text: '360p (Smallest)', callback_data: `quality:${type}:360:${urlId}` }],
-              [{ text: '1080p (Large)', callback_data: `quality:${type}:1080:${urlId}` }],
-              [{ text: '2K (Very Large)', callback_data: `quality:${type}:2k:${urlId}` }],
-              [{ text: '4K (Huge)', callback_data: `quality:${type}:4k:${urlId}` }],
-              [{ text: 'Best Available', callback_data: `quality:${type}:best:${urlId}` }]
+              [
+                { text: '⭐ 720p (Recommended)', callback_data: `quality:${type}:720:${urlId}` },
+                { text: '📱 480p', callback_data: `quality:${type}:480:${urlId}` }
+              ],
+              [
+                { text: '💾 360p (Small)', callback_data: `quality:${type}:360:${urlId}` },
+                { text: '📺 1080p (HD)', callback_data: `quality:${type}:1080:${urlId}` }
+              ],
+              [
+                { text: '�  Best Available', callback_data: `quality:${type}:best:${urlId}` }
+              ]
             ]
           : [
-              [{ text: 'Best Quality', callback_data: `quality:${type}:best:${urlId}` }],
-              [{ text: 'Medium (128kbps)', callback_data: `quality:${type}:medium:${urlId}` }]
+              [
+                { text: '🎵 Best Quality', callback_data: `quality:${type}:best:${urlId}` }
+              ],
+              [
+                { text: '🎶 Medium (128kbps)', callback_data: `quality:${type}:medium:${urlId}` }
+              ]
             ];
 
         await this.bot.editMessageText(
-          `Select quality:\n\n` +
-          `⚠️ Important: Telegram Bot API limit is 50MB\n` +
-          `💡 Choose 720p or lower for reliable delivery\n` +
-          `📊 Larger files will be split or need web download`,
+          `🎬 SELECT QUALITY\n` +
+          `========================\n\n` +
+          `${type === 'video' ? '📹 Video Quality:' : '🎵 Audio Quality:'}\n\n` +
+          `💡 RECOMMENDATIONS\n` +
+          `⭐ 720p - Best balance\n` +
+          `� 480p M- Small & fast\n` +
+          `💾 360p - Smallest size\n` +
+          `� 1080p - Faull HD\n\n` +
+          `⚠️ Files >50MB will be split`,
           {
             chat_id: chatId,
             message_id: query.message.message_id,
@@ -1040,19 +1077,44 @@ export class TelegramBotService {
           throw new Error('URL expired. Please send the link again.');
         }
         
+        // Block 2K and 4K downloads
+        if (quality === '2k' || quality === '4k') {
+          await this.bot.editMessageText(
+            `❌ ${quality.toUpperCase()} downloads are disabled\n\n` +
+            `⚠️ High resolution files are too large for Telegram\n\n` +
+            `💡 Please choose:\n` +
+            `• 1080p (Full HD)\n` +
+            `• 720p (Recommended)\n` +
+            `• 480p or 360p (Smaller files)\n\n` +
+            `Send the URL again to select quality.`,
+            {
+              chat_id: chatId,
+              message_id: query.message.message_id
+            }
+          );
+          this.urlCache.delete(parseInt(urlId));
+          return;
+        }
+        
         await this.startDownload(chatId, query.message.message_id, cached.url, type, quality, cached.info);
         
         // Clean up URL from cache after use
         this.urlCache.delete(parseInt(urlId));
       }
 
-      await this.bot.answerCallbackQuery(query.id);
     } catch (error) {
-      // Telegram callback query text limit is 200 characters
-      const errorText = error.message.length > 180 
-        ? error.message.substring(0, 180) + '...' 
-        : error.message;
-      await this.bot.answerCallbackQuery(query.id, { text: `Error: ${errorText}` });
+      console.error('Callback error:', error.message);
+      
+      // Try to notify user via message instead of callback
+      try {
+        const errorText = error.message.length > 180 
+          ? error.message.substring(0, 180) + '...' 
+          : error.message;
+        
+        await this.bot.sendMessage(chatId, `❌ Error: ${errorText}`);
+      } catch (sendError) {
+        console.error('Failed to send error message:', sendError.message);
+      }
     }
   }
 
@@ -1341,7 +1403,7 @@ export class TelegramBotService {
           await this.bot.editMessageText(
             `✅ Download completed!\n\n` +
             `📦 ${downloadInfo.title.substring(0, 50)}...\n` +
-            `� Sizoe: ${this.formatBytes(fileSize)}\n\n` +
+            `📊 Size: ${this.formatBytes(fileSize)}\n\n` +
             `⚠️ File too large to split (max 2GB)\n\n` +
             `📁 ${fileName}\n` +
             `💡 Get file from web interface`,

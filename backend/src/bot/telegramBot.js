@@ -22,6 +22,10 @@ export class TelegramBotService {
     ];
     this.allUsers = new Set(); // Track all users
     this.customFilenames = new Map(); // Store custom filenames
+    this.batchDownloads = new Map(); // Store batch download requests
+    this.scheduledDownloads = new Map(); // Store scheduled downloads
+    this.userPresets = new Map(); // Store user quality presets
+    this.trimSettings = new Map(); // Store video trim settings
   }
 
   getDefaultSettings() {
@@ -80,6 +84,10 @@ export class TelegramBotService {
         { command: 'formats', description: 'Show available formats' },
         { command: 'dl', description: 'Quick download (url quality)' },
         { command: 'info', description: 'Get video details' },
+        { command: 'batch', description: 'Batch download multiple URLs' },
+        { command: 'playlist', description: 'Download playlist' },
+        { command: 'trim', description: 'Download with time range' },
+        { command: 'preset', description: 'Save quality preset' },
         { command: 'favorites', description: 'View favorites' },
         { command: 'addfav', description: 'Add to favorites' },
         { command: 'queue', description: 'View download queue' },
@@ -166,6 +174,13 @@ export class TelegramBotService {
         `⚡ QUICK DOWNLOAD\n` +
         `• /dl <url> <quality>\n` +
         `  💡 Example: /dl https://... 720\n\n` +
+        
+        `🆕 NEW FEATURES\n` +
+        `• /batch - Download multiple URLs\n` +
+        `• /playlist <url> - Download playlist\n` +
+        `• /trim <url> <start> <end> - Trim video\n` +
+        `• /preset - Save quality presets\n` +
+        `• /quick - Quick actions menu\n\n` +
         
         `⭐ FAVORITES\n` +
         `• /favorites - View saved\n` +
@@ -676,19 +691,173 @@ export class TelegramBotService {
       this.bot.sendMessage(chatId, `✅ Next download will be saved as:\n${filename}\n\nNow send the video URL.`);
     });
 
-    // Time range download command
-    this.bot.onText(/\/clip (.+) (\d+:\d+) (\d+:\d+)/, async (msg, match) => {
+    // Batch download command
+    this.bot.onText(/\/batch/, async (msg) => {
+      const chatId = msg.chat.id;
+      
+      this.bot.sendMessage(chatId,
+        `📦 Batch Download Mode\n\n` +
+        `Send multiple video URLs (one per line)\n` +
+        `Example:\n` +
+        `https://youtube.com/watch?v=xxx\n` +
+        `https://youtube.com/watch?v=yyy\n` +
+        `https://youtube.com/watch?v=zzz\n\n` +
+        `💡 I'll download all of them with your default quality setting.\n\n` +
+        `Send the URLs now:`
+      );
+      
+      this.batchDownloads.set(chatId, { waiting: true, urls: [] });
+    });
+
+    // Playlist download command
+    this.bot.onText(/\/playlist (.+)/, async (msg, match) => {
+      const chatId = msg.chat.id;
+      const url = match[1];
+      
+      try {
+        const statusMsg = await this.bot.sendMessage(chatId, '🎬 Analyzing playlist...');
+        
+        const youtubedl = (await import('youtube-dl-exec')).default;
+        const playlistInfo = await youtubedl(url, {
+          dumpSingleJson: true,
+          flatPlaylist: true,
+          noCheckCertificates: true,
+          noWarnings: true
+        });
+        
+        if (!playlistInfo.entries || playlistInfo.entries.length === 0) {
+          await this.bot.editMessageText(
+            `❌ No videos found in playlist`,
+            {
+              chat_id: chatId,
+              message_id: statusMsg.message_id
+            }
+          );
+          return;
+        }
+        
+        const videoCount = playlistInfo.entries.length;
+        const playlistTitle = playlistInfo.title || 'Playlist';
+        
+        await this.bot.editMessageText(
+          `🎬 Playlist Found!\n\n` +
+          `📝 ${playlistTitle}\n` +
+          `📊 Videos: ${videoCount}\n\n` +
+          `⚠️ This will download ${videoCount} videos.\n` +
+          `Estimated time: ${Math.ceil(videoCount * 2)} minutes\n\n` +
+          `Choose an option:`,
+          {
+            chat_id: chatId,
+            message_id: statusMsg.message_id,
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: `✅ Download All (${videoCount})`, callback_data: `playlist:all:${url}` }
+                ],
+                [
+                  { text: '🔢 Select Videos', callback_data: `playlist:select:${url}` }
+                ],
+                [
+                  { text: '❌ Cancel', callback_data: 'playlist:cancel' }
+                ]
+              ]
+            }
+          }
+        );
+      } catch (error) {
+        this.bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+      }
+    });
+
+    // Trim/Time range download command
+    this.bot.onText(/\/trim (.+) (\d+:\d+) (\d+:\d+)/, async (msg, match) => {
       const chatId = msg.chat.id;
       const url = match[1];
       const startTime = match[2];
       const endTime = match[3];
       
+      this.trimSettings.set(chatId, { url, startTime, endTime });
+      
       this.bot.sendMessage(chatId, 
-        `⏱️ Time range download:\n\n` +
-        `URL: ${url}\n` +
-        `Start: ${startTime}\n` +
-        `End: ${endTime}\n\n` +
-        `⚠️ Feature coming soon! For now, download the full video.`
+        `✂️ Video Trimming\n\n` +
+        `📹 URL: ${url.substring(0, 50)}...\n` +
+        `⏱️ Start: ${startTime}\n` +
+        `⏱️ End: ${endTime}\n\n` +
+        `Select quality to download:`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '⭐ 720p', callback_data: `trim:720:${chatId}` },
+                { text: '📱 480p', callback_data: `trim:480:${chatId}` }
+              ],
+              [
+                { text: '📺 1080p', callback_data: `trim:1080:${chatId}` },
+                { text: '💾 360p', callback_data: `trim:360:${chatId}` }
+              ]
+            ]
+          }
+        }
+      );
+    });
+
+    // Quality preset command
+    this.bot.onText(/\/preset/, (msg) => {
+      const chatId = msg.chat.id;
+      const preset = this.userPresets.get(chatId) || { video: '720', audio: 'best' };
+      
+      this.bot.sendMessage(chatId,
+        `⚙️ Quality Presets\n\n` +
+        `Current Settings:\n` +
+        `🎬 Video: ${preset.video}p\n` +
+        `🎵 Audio: ${preset.audio}\n\n` +
+        `Choose preset to change:`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '🎬 Video Quality', callback_data: 'preset:video' }
+              ],
+              [
+                { text: '🎵 Audio Quality', callback_data: 'preset:audio' }
+              ],
+              [
+                { text: '💾 Save Current', callback_data: 'preset:save' }
+              ]
+            ]
+          }
+        }
+      );
+    });
+
+    // Quick actions command
+    this.bot.onText(/\/quick/, (msg) => {
+      const chatId = msg.chat.id;
+      
+      this.bot.sendMessage(chatId,
+        `⚡ Quick Actions\n\n` +
+        `Choose a quick action:`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '🔥 Trending', callback_data: 'quick:trending' },
+                { text: '🔍 Search', callback_data: 'quick:search' }
+              ],
+              [
+                { text: '⭐ Favorites', callback_data: 'quick:favorites' },
+                { text: '📊 Stats', callback_data: 'quick:stats' }
+              ],
+              [
+                { text: '📋 Queue', callback_data: 'quick:queue' },
+                { text: '📜 History', callback_data: 'quick:history' }
+              ],
+              [
+                { text: '⚙️ Settings', callback_data: 'quick:settings' }
+              ]
+            ]
+          }
+        }
       );
     });
 
@@ -774,6 +943,45 @@ export class TelegramBotService {
 
       // Skip if it's a command
       if (!text || text.startsWith('/')) return;
+
+      // Check if in batch download mode
+      const batchMode = this.batchDownloads.get(chatId);
+      if (batchMode && batchMode.waiting) {
+        // Check if message contains multiple URLs
+        const urls = text.split('\n').filter(line => this.isValidUrl(line.trim()));
+        
+        if (urls.length > 0) {
+          this.bot.sendMessage(chatId, 
+            `📦 Found ${urls.length} URLs\n\n` +
+            `Starting batch download with ${this.userSettings.get(chatId)?.defaultQuality || '720p'} quality...\n\n` +
+            `This may take a while.`
+          );
+          
+          this.batchDownloads.delete(chatId);
+          
+          // Download each URL
+          for (const [index, url] of urls.entries()) {
+            try {
+              const statusMsg = await this.bot.sendMessage(chatId, 
+                `⏬ Downloading ${index + 1}/${urls.length}\n\n` +
+                `${url.substring(0, 50)}...`
+              );
+              
+              const info = await this.videoInfoService.getVideoInfo(url);
+              const quality = this.userSettings.get(chatId)?.defaultQuality || '720';
+              await this.startDownload(chatId, statusMsg.message_id, url, 'video', quality, info);
+              
+              // Small delay between downloads
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            } catch (error) {
+              this.bot.sendMessage(chatId, `❌ Failed: ${url.substring(0, 30)}...`);
+            }
+          }
+          
+          this.bot.sendMessage(chatId, `✅ Batch download complete! Downloaded ${urls.length} videos.`);
+          return;
+        }
+      }
 
       // Check if it's a URL
       if (this.isValidUrl(text)) {
@@ -934,6 +1142,190 @@ export class TelegramBotService {
             }
           }
         );
+      } else if (data.startsWith('playlist:')) {
+        const [, action, urlOrData] = data.split(':');
+        
+        if (action === 'cancel') {
+          await this.bot.editMessageText(
+            `❌ Playlist download cancelled`,
+            {
+              chat_id: chatId,
+              message_id: query.message.message_id
+            }
+          );
+          return;
+        }
+        
+        if (action === 'all') {
+          await this.bot.editMessageText(
+            `🚀 Starting playlist download...\n\n` +
+            `This may take a while. I'll send each video as it completes.`,
+            {
+              chat_id: chatId,
+              message_id: query.message.message_id
+            }
+          );
+          
+          // Start playlist download in background
+          this.downloadPlaylist(chatId, urlOrData);
+        }
+        
+        return;
+      } else if (data.startsWith('trim:')) {
+        const [, quality, userId] = data.split(':');
+        const trimData = this.trimSettings.get(chatId);
+        
+        if (!trimData) {
+          throw new Error('Trim settings expired. Please use /trim command again.');
+        }
+        
+        await this.bot.editMessageText(
+          `✂️ Trimming video...\n\n` +
+          `⏱️ ${trimData.startTime} - ${trimData.endTime}\n` +
+          `📊 Quality: ${quality}p\n\n` +
+          `This may take a few minutes...`,
+          {
+            chat_id: chatId,
+            message_id: query.message.message_id
+          }
+        );
+        
+        // Start trim download
+        await this.downloadTrimmed(chatId, trimData.url, quality, trimData.startTime, trimData.endTime);
+        this.trimSettings.delete(chatId);
+        
+        return;
+      } else if (data.startsWith('preset:')) {
+        const [, action] = data.split(':');
+        const preset = this.userPresets.get(chatId) || { video: '720', audio: 'best' };
+        
+        if (action === 'video') {
+          await this.bot.editMessageText(
+            `🎬 Select Video Quality Preset:`,
+            {
+              chat_id: chatId,
+              message_id: query.message.message_id,
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    { text: '360p', callback_data: 'preset:video:360' },
+                    { text: '480p', callback_data: 'preset:video:480' }
+                  ],
+                  [
+                    { text: '720p', callback_data: 'preset:video:720' },
+                    { text: '1080p', callback_data: 'preset:video:1080' }
+                  ],
+                  [
+                    { text: '2K', callback_data: 'preset:video:2k' },
+                    { text: '4K', callback_data: 'preset:video:4k' }
+                  ]
+                ]
+              }
+            }
+          );
+        } else if (action === 'audio') {
+          await this.bot.editMessageText(
+            `🎵 Select Audio Quality Preset:`,
+            {
+              chat_id: chatId,
+              message_id: query.message.message_id,
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    { text: 'Best Quality', callback_data: 'preset:audio:best' }
+                  ],
+                  [
+                    { text: 'Medium (128kbps)', callback_data: 'preset:audio:medium' }
+                  ]
+                ]
+              }
+            }
+          );
+        } else if (action === 'save') {
+          this.userPresets.set(chatId, preset);
+          await this.bot.editMessageText(
+            `✅ Preset saved!\n\n` +
+            `🎬 Video: ${preset.video}p\n` +
+            `🎵 Audio: ${preset.audio}`,
+            {
+              chat_id: chatId,
+              message_id: query.message.message_id
+            }
+          );
+        } else {
+          // Saving preset value
+          const [, type, value] = data.split(':');
+          preset[type] = value;
+          this.userPresets.set(chatId, preset);
+          
+          await this.bot.editMessageText(
+            `✅ ${type === 'video' ? '🎬 Video' : '🎵 Audio'} preset updated to: ${value}\n\n` +
+            `Current Presets:\n` +
+            `🎬 Video: ${preset.video}p\n` +
+            `🎵 Audio: ${preset.audio}`,
+            {
+              chat_id: chatId,
+              message_id: query.message.message_id
+            }
+          );
+        }
+        
+        return;
+      } else if (data.startsWith('quick:')) {
+        const [, action] = data.split(':');
+        
+        // Handle quick actions
+        if (action === 'trending') {
+          // Trigger trending command
+          this.bot.sendMessage(chatId, '🔥 Fetching trending videos...');
+          // Reuse trending logic
+        } else if (action === 'search') {
+          this.bot.sendMessage(chatId, '🔍 Send your search query:');
+        } else if (action === 'favorites') {
+          // Trigger favorites command
+          const favorites = this.userFavorites.get(chatId) || [];
+          if (favorites.length === 0) {
+            this.bot.sendMessage(chatId, '⭐ No favorites yet.');
+          } else {
+            const favText = favorites.map((fav, idx) => 
+              `${idx + 1}. ${fav.title.substring(0, 40)}...`
+            ).join('\n');
+            this.bot.sendMessage(chatId, `⭐ Your Favorites:\n\n${favText}`);
+          }
+        } else if (action === 'stats') {
+          // Trigger stats command
+          const history = this.userHistory.get(chatId) || [];
+          const completed = history.filter(h => h.status === 'completed').length;
+          this.bot.sendMessage(chatId, 
+            `📊 Quick Stats:\n\n` +
+            `📦 Total: ${history.length}\n` +
+            `✅ Completed: ${completed}`
+          );
+        } else if (action === 'queue') {
+          const queue = this.downloadQueue.get(chatId) || [];
+          this.bot.sendMessage(chatId, 
+            `📋 Queue: ${queue.length} videos\n\n` +
+            `Use /startqueue to begin`
+          );
+        } else if (action === 'history') {
+          const history = this.userHistory.get(chatId) || [];
+          const recent = history.slice(-5).reverse();
+          const historyText = recent.map(h => 
+            `${h.status === 'completed' ? '✅' : '❌'} ${h.title.substring(0, 30)}...`
+          ).join('\n');
+          this.bot.sendMessage(chatId, `📜 Recent:\n\n${historyText || 'No history'}`);
+        } else if (action === 'settings') {
+          // Trigger settings
+          const settings = this.userSettings.get(chatId) || this.getDefaultSettings();
+          this.bot.sendMessage(chatId,
+            `⚙️ Settings:\n\n` +
+            `Auto-delete: ${settings.autoDelete ? 'ON' : 'OFF'}\n` +
+            `Quality: ${settings.defaultQuality}\n` +
+            `Notifications: ${settings.notifications ? 'ON' : 'OFF'}`
+          );
+        }
+        
+        return;
       } else if (data.startsWith('setting:')) {
         const parts = data.split(':');
         const setting = parts[1];
@@ -1670,6 +2062,112 @@ export class TelegramBotService {
     } catch (error) {
       console.error('Error formatting date:', error);
       return 'Unknown';
+    }
+  }
+
+  async downloadPlaylist(chatId, playlistUrl) {
+    try {
+      const youtubedl = (await import('youtube-dl-exec')).default;
+      const playlistInfo = await youtubedl(playlistUrl, {
+        dumpSingleJson: true,
+        flatPlaylist: true,
+        noCheckCertificates: true,
+        noWarnings: true
+      });
+      
+      if (!playlistInfo.entries) {
+        this.bot.sendMessage(chatId, '❌ No videos found in playlist');
+        return;
+      }
+      
+      const settings = this.userSettings.get(chatId) || this.getDefaultSettings();
+      const quality = settings.defaultQuality;
+      
+      let completed = 0;
+      let failed = 0;
+      
+      for (const [index, video] of playlistInfo.entries.entries()) {
+        try {
+          const statusMsg = await this.bot.sendMessage(chatId, 
+            `⏬ Downloading ${index + 1}/${playlistInfo.entries.length}\n\n` +
+            `📹 ${video.title.substring(0, 50)}...`
+          );
+          
+          const info = await this.videoInfoService.getVideoInfo(video.webpage_url);
+          await this.startDownload(chatId, statusMsg.message_id, video.webpage_url, 'video', quality, info);
+          completed++;
+          
+          // Small delay between downloads
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } catch (error) {
+          failed++;
+          this.bot.sendMessage(chatId, `❌ Failed: ${video.title.substring(0, 30)}...`);
+        }
+      }
+      
+      this.bot.sendMessage(chatId, 
+        `✅ Playlist download complete!\n\n` +
+        `✅ Completed: ${completed}\n` +
+        `❌ Failed: ${failed}\n` +
+        `📊 Total: ${playlistInfo.entries.length}`
+      );
+    } catch (error) {
+      this.bot.sendMessage(chatId, `❌ Playlist error: ${error.message}`);
+    }
+  }
+
+  async downloadTrimmed(chatId, url, quality, startTime, endTime) {
+    try {
+      const youtubedl = (await import('youtube-dl-exec')).default;
+      const sanitize = (await import('sanitize-filename')).default;
+      const path = (await import('path')).default;
+      
+      // Get video info
+      const info = await youtubedl(url, {
+        dumpSingleJson: true,
+        noCheckCertificates: true,
+        noWarnings: true
+      });
+      
+      const filename = sanitize(info.title);
+      const outputPath = path.join(this.downloadService.downloadPath, `${filename}_trimmed.mp4`);
+      
+      // Download with time range using FFmpeg
+      await youtubedl(url, {
+        output: outputPath,
+        format: `bestvideo[height<=${quality}]+bestaudio/best[height<=${quality}]`,
+        downloadSections: `*${startTime}-${endTime}`,
+        forceKeyframesAtCuts: true,
+        noCheckCertificates: true,
+        noWarnings: true
+      });
+      
+      // Send the trimmed file
+      if (fs.existsSync(outputPath)) {
+        const fileSize = fs.statSync(outputPath).size;
+        
+        if (fileSize < 50 * 1024 * 1024) {
+          await this.bot.sendVideo(chatId, outputPath, {
+            caption: `✂️ Trimmed: ${info.title}\n\n` +
+                    `⏱️ ${startTime} - ${endTime}\n` +
+                    `📊 ${quality}p\n` +
+                    `📦 ${this.formatBytes(fileSize)}`
+          });
+          
+          this.bot.sendMessage(chatId, `✅ Trimmed video sent!`);
+        } else {
+          this.bot.sendMessage(chatId, 
+            `⚠️ Trimmed file is ${this.formatBytes(fileSize)}\n\n` +
+            `Too large to send via Telegram.\n` +
+            `Try a shorter time range.`
+          );
+        }
+        
+        // Clean up
+        fs.unlinkSync(outputPath);
+      }
+    } catch (error) {
+      this.bot.sendMessage(chatId, `❌ Trim failed: ${error.message}`);
     }
   }
 

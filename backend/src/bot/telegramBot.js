@@ -545,7 +545,7 @@ Let's get started! 🎵📹
           { text: '🎬 Video Options', callback_data: `show_video_options_${urlId}` }
         ],
         [
-          { text: '�️ 7200p HD', callback_data: `qk_video_720_${urlId}` },
+          { text: '🖥️ 720p HD', callback_data: `qk_video_720_${urlId}` },
           { text: '📽️ 1080p FHD', callback_data: `qk_video_1080_${urlId}` }
         ],
         [

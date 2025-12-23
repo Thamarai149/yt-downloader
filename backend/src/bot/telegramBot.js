@@ -8,6 +8,7 @@ class TelegramBotService {
     this.bot = null;
     this.commands = new Map();
     this.userSessions = new Map();
+    this.urlCache = new Map(); // Cache for storing URLs with short IDs
     this.downloadService = downloadService;
     this.videoInfoService = videoInfoService;
     this.initializeCommands();
@@ -17,6 +18,23 @@ class TelegramBotService {
   setServices(downloadService, videoInfoService) {
     this.downloadService = downloadService;
     this.videoInfoService = videoInfoService;
+  }
+
+  // Generate short ID for URL to avoid callback data limit
+  generateUrlId(url) {
+    const id = Math.random().toString(36).substring(2, 8); // 6 character ID
+    this.urlCache.set(id, url);
+    // Clean old entries to prevent memory leak (keep last 100)
+    if (this.urlCache.size > 100) {
+      const firstKey = this.urlCache.keys().next().value;
+      this.urlCache.delete(firstKey);
+    }
+    return id;
+  }
+
+  // Get URL from short ID
+  getUrlFromId(id) {
+    return this.urlCache.get(id);
   }
 
   // Initialize the bot
@@ -241,7 +259,11 @@ Let's get started! 🎵📹
       return;
     }
 
-    await this.startDownload(chatId, url, { format: 'audio', quality: 'best' });
+    await this.startDownload(chatId, url, { 
+      format: 'audio', 
+      originalQuality: 'best',
+      quality: 'best' 
+    });
   }
 
   async handleVideoDownload(msg, args) {
@@ -260,7 +282,11 @@ Let's get started! 🎵📹
       return;
     }
 
-    await this.startDownload(chatId, url, { format: 'video', quality: 'best' });
+    await this.startDownload(chatId, url, { 
+      format: 'video', 
+      originalQuality: 'best',
+      quality: 'best' 
+    });
   }
 
   async handleResolutions(msg, args) {
@@ -473,26 +499,28 @@ Let's get started! 🎵📹
 
   // Utility Methods
   async showDownloadOptions(chatId, url) {
+    const urlId = this.generateUrlId(url);
+    
     const keyboard = {
       inline_keyboard: [
         [
-          { text: '🎵 Audio Only (MP3)', callback_data: `download_audio_best_${url}` }
+          { text: '🎵 Audio Only (MP3)', callback_data: `dl_audio_best_${urlId}` }
         ],
         [
-          { text: '📱 360p', callback_data: `download_video_360_${url}` },
-          { text: '📺 480p', callback_data: `download_video_480_${url}` }
+          { text: '📱 360p', callback_data: `dl_video_360_${urlId}` },
+          { text: '📺 480p', callback_data: `dl_video_480_${urlId}` }
         ],
         [
-          { text: '🖥️ 720p HD', callback_data: `download_video_720_${url}` },
-          { text: '📽️ 1080p FHD', callback_data: `download_video_1080_${url}` }
+          { text: '🖥️ 720p HD', callback_data: `dl_video_720_${urlId}` },
+          { text: '📽️ 1080p FHD', callback_data: `dl_video_1080_${urlId}` }
         ],
         [
-          { text: '🎬 1440p 2K', callback_data: `download_video_1440_${url}` },
-          { text: '🎭 2160p 4K', callback_data: `download_video_2160_${url}` }
+          { text: '🎬 1440p 2K', callback_data: `dl_video_1440_${urlId}` },
+          { text: '🎭 2160p 4K', callback_data: `dl_video_2160_${urlId}` }
         ],
         [
-          { text: '⭐ Best Quality', callback_data: `download_video_best_${url}` },
-          { text: '⚡ Fastest', callback_data: `download_video_worst_${url}` }
+          { text: '⭐ Best Quality', callback_data: `dl_video_best_${urlId}` },
+          { text: '⚡ Fastest', callback_data: `dl_video_worst_${urlId}` }
         ],
         [
           { text: '❌ Cancel', callback_data: 'cancel_download' }
@@ -508,16 +536,24 @@ Let's get started! 🎵📹
 
   async handleQuickDownload(msg, url) {
     const chatId = msg.chat.id;
+    const urlId = this.generateUrlId(url);
     
     const keyboard = {
       inline_keyboard: [
         [
-          { text: '🎵 Audio', callback_data: `quick_audio_best_${url}` },
-          { text: '🎬 720p HD', callback_data: `quick_video_720_${url}` }
+          { text: '🎵 Audio', callback_data: `qk_audio_best_${urlId}` },
+          { text: '🎬 Video Options', callback_data: `show_video_options_${urlId}` }
         ],
         [
-          { text: '📽️ 1080p FHD', callback_data: `quick_video_1080_${url}` },
-          { text: '⭐ Best Quality', callback_data: `quick_video_best_${url}` }
+          { text: '�️ 7200p HD', callback_data: `qk_video_720_${urlId}` },
+          { text: '📽️ 1080p FHD', callback_data: `qk_video_1080_${urlId}` }
+        ],
+        [
+          { text: '🎬 1440p 2K', callback_data: `qk_video_1440_${urlId}` },
+          { text: '🎭 2160p 4K', callback_data: `qk_video_2160_${urlId}` }
+        ],
+        [
+          { text: '⭐ Best Quality', callback_data: `qk_video_best_${urlId}` }
         ]
       ]
     };
@@ -617,6 +653,7 @@ Let's get started! 🎵📹
       
       // Store additional info in the result
       downloadResult.videoInfo = videoInfo;
+      downloadResult.originalQuality = quality; // Store original quality
       downloadResult.quality = quality;
       downloadResult.url = url;
       
@@ -724,7 +761,7 @@ Let's get started! 🎵📹
 📊 Progress: ${currentPercent}%
 📦 Downloaded: ${downloadedAmount}
 📈 Estimated Size: ${estimatedSize ? this.formatFileSize(estimatedSize) : 'Calculating...'}
-📺 Quality: ${this.getQualityLabel(session.activeDownload.options?.quality)}
+📺 Quality: ${this.getQualityLabel(session.activeDownload.options?.originalQuality || session.activeDownload.options?.quality)}
 ⚡ Status: ${progress.status || 'Processing...'}
 
 Please wait... 🎵
@@ -821,7 +858,7 @@ Please wait... 🎵
 📁 File: ${filename}
 📊 Size: ${fileSize}
 ⏱️ Duration: ${duration}
-📺 Quality: ${this.getQualityLabel(result.quality)}
+📺 Quality: ${this.getQualityLabel(result.originalQuality || result.quality)}
 
 Your file is ready! 🎉
       `;
@@ -910,14 +947,21 @@ This file (${fileSize}) is too large to send via Telegram (50MB limit).
   // Helper method to get quality label
   getQualityLabel(quality) {
     const qualityLabels = {
+      'worst[height<=360]': '360p (Mobile)',
+      'worst[height<=480]': '480p (Mobile)', 
+      'best[height<=720]': '720p HD',
+      'best[height<=1080]': '1080p FHD',
+      'best[height<=1440]': '1440p 2K',
+      'best[height<=2160]': '2160p 4K',
+      'best': 'Best Available',
+      'worst': 'Fastest Download',
+      // Handle the mapped qualities from our system
       '360': '360p (Mobile)',
       '480': '480p (Mobile)',
-      '720': '720p HD',
+      '720': '720p HD', 
       '1080': '1080p FHD',
       '1440': '1440p 2K',
-      '2160': '2160p 4K',
-      'best': 'Best Available',
-      'worst': 'Fastest Download'
+      '2160': '2160p 4K'
     };
     
     return qualityLabels[quality] || quality || 'Standard';
@@ -943,10 +987,12 @@ This file (${fileSize}) is too large to send via Telegram (50MB limit).
       await this.bot.answerCallbackQuery(callbackQuery.id);
 
       // Handle different callback types
-      if (data.startsWith('download_')) {
+      if (data.startsWith('dl_')) {
         await this.handleDownloadCallback(chatId, data);
-      } else if (data.startsWith('quick_')) {
+      } else if (data.startsWith('qk_')) {
         await this.handleQuickCallback(chatId, data);
+      } else if (data.startsWith('show_video_options_')) {
+        await this.handleShowVideoOptions(chatId, data);
       } else {
         await this.handleGenericCallback(chatId, data);
       }
@@ -956,15 +1002,36 @@ This file (${fileSize}) is too large to send via Telegram (50MB limit).
     }
   }
 
+  // Handle "Video Options" button - shows all resolutions
+  async handleShowVideoOptions(chatId, data) {
+    const urlId = data.replace('show_video_options_', '');
+    const url = this.getUrlFromId(urlId);
+    
+    if (!url) {
+      await this.sendMessage(chatId, '❌ Download link expired. Please send the URL again.');
+      return;
+    }
+
+    // Show full resolution menu
+    await this.showDownloadOptions(chatId, url);
+  }
+
   async handleDownloadCallback(chatId, data) {
     const parts = data.split('_');
-    const action = parts[0]; // 'download'
+    const action = parts[0]; // 'dl'
     const format = parts[1]; // 'audio' or 'video'
     const quality = parts[2]; // resolution or 'best'/'worst'
-    const url = parts.slice(3).join('_'); // reconstruct URL
+    const urlId = parts[3]; // short URL ID
+    
+    const url = this.getUrlFromId(urlId);
+    if (!url) {
+      await this.sendMessage(chatId, '❌ Download link expired. Please send the URL again.');
+      return;
+    }
     
     const options = {
       format: format === 'audio' ? 'audio' : 'video',
+      originalQuality: quality, // Store original for display
       quality: this.mapQualityToYoutubeDl(quality)
     };
 
@@ -973,13 +1040,20 @@ This file (${fileSize}) is too large to send via Telegram (50MB limit).
 
   async handleQuickCallback(chatId, data) {
     const parts = data.split('_');
-    const action = parts[0]; // 'quick'
+    const action = parts[0]; // 'qk'
     const format = parts[1]; // 'audio' or 'video'
     const quality = parts[2]; // resolution or 'best'/'worst'
-    const url = parts.slice(3).join('_'); // reconstruct URL
+    const urlId = parts[3]; // short URL ID
+    
+    const url = this.getUrlFromId(urlId);
+    if (!url) {
+      await this.sendMessage(chatId, '❌ Download link expired. Please send the URL again.');
+      return;
+    }
     
     const options = {
       format: format === 'audio' ? 'audio' : 'video',
+      originalQuality: quality, // Store original for display
       quality: this.mapQualityToYoutubeDl(quality)
     };
 
@@ -1099,7 +1173,7 @@ This file (${fileSize}) is too large to send via Telegram (50MB limit).
   async sendMessage(chatId, text, options = {}) {
     try {
       return await this.bot.sendMessage(chatId, text, {
-        parse_mode: 'HTML',
+        parse_mode: undefined, // Remove HTML parsing to avoid entity issues
         ...options
       });
     } catch (error) {

@@ -120,7 +120,7 @@ export class DownloadService {
       options.audioQuality = 0;
     } else {
       // For 2K/4K, download video and audio separately, then merge with FFmpeg
-      const needsMerging = quality === '4k' || quality === '2k';
+      const needsMerging = quality.includes('1440') || quality.includes('2160') || quality === '2k' || quality === '4k';
       
       if (needsMerging) {
         await this.downloadAndMerge(url, quality, outputPath, downloadId);
@@ -128,16 +128,16 @@ export class DownloadService {
       }
       
       // For 1080p and below, use muxed streams (video+audio combined)
-      if (quality === '1080') {
+      if (quality.includes('1080')) {
         options.format = 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080]';
-      } else if (quality === '720') {
+      } else if (quality.includes('720')) {
         options.format = 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]';
-      } else if (quality === '480') {
+      } else if (quality.includes('480')) {
         options.format = 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]';
-      } else if (quality === '360') {
+      } else if (quality.includes('360')) {
         options.format = 'bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360]';
       } else {
-        options.format = 'best'; // Best available quality
+        options.format = quality || 'best'; // Use the provided format or best available
       }
     }
 

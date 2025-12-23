@@ -21,6 +21,8 @@ console.log('\n📺 Quality Labels:');
 console.log('720 =', bot.getQualityLabel('720'));
 console.log('1080 =', bot.getQualityLabel('1080'));
 console.log('best =', bot.getQualityLabel('best'));
+console.log('best[height<=1080] =', bot.getQualityLabel('best[height<=1080]'));
+console.log('worst[height<=360] =', bot.getQualityLabel('worst[height<=360]'));
 
 console.log('\n📱 Number Formatting:');
 console.log('1500 =', bot.formatNumber(1500));

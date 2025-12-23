@@ -1,0 +1,17 @@
+{
+  "name": "streamedv3-bot",
+  "version": "1.0.0",
+  "description": "StreamedV3 YouTube Downloader Telegram Bot",
+  "main": "backend/src/server.js",
+  "scripts": {
+    "start": "cd backend && npm start",
+    "build": "cd backend && npm install",
+    "dev": "cd backend && npm run dev"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["telegram", "bot", "youtube", "downloader"],
+  "author": "",
+  "license": "MIT"
+}

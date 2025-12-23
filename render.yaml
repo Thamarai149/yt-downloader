@@ -1,25 +1,26 @@
 services:
   - type: web
-    name: youtube-downloader-backend
-    runtime: node
-    region: oregon
+    name: streamedv3-bot
+    env: node
     plan: free
-    branch: main
-    rootDir: backend
-    buildCommand: npm install
-    startCommand: npm start
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 10000
+        value: 3001
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: DOWNLOAD_PATH
+        value: /tmp/downloads
       - key: MAX_CONCURRENT_DOWNLOADS
-        value: 3
+        value: 2
       - key: RATE_LIMIT_WINDOW
         value: 15
       - key: RATE_LIMIT_MAX
-        value: 100
-      - key: CORS_ORIGIN
-        sync: false
-    healthCheckPath: /api/health
-    autoDeploy: true
+        value: 50
+      - key: TELEGRAM_BOT_TOKEN
+        fromDatabase:
+          name: telegram-bot-token
+          property: connectionString

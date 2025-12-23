@@ -136,7 +136,7 @@ export class TelegramBotService {
       const username = msg.from.first_name || 'there';
       
       this.bot.sendMessage(chatId, 
-        `🎬 StreamedV3 Bot\n` +
+        `🎬 YTStreamer007 Bot\n` +
         `========================\n\n` +
         `👋 Hey ${username}! Welcome aboard!\n\n` +
         `🎯 What I Can Do:\n` +
@@ -298,7 +298,7 @@ export class TelegramBotService {
     this.bot.onText(/\/about/, (msg) => {
       const chatId = msg.chat.id;
       this.bot.sendMessage(chatId,
-        `🤖 ABOUT STREAMEDV3\n` +
+        `🤖 ABOUT YTSTREAMER007\n` +
         `===========================\n\n` +
         
         `✨ FEATURES\n` +

@@ -41,8 +41,8 @@ echo const path = require^('path'^);
 echo.
 echo // Create a new service object
 echo const svc = new Service^({
-echo   name: 'StreamedV3 Bot',
-echo   description: 'StreamedV3 YouTube Downloader Telegram Bot',
+echo   name: 'YTStreamer007 Bot',
+echo   description: 'YTStreamer007 YouTube Downloader Telegram Bot',
 echo   script: path.join^(__dirname, 'src', 'server.js'^),
 echo   nodeOptions: [
 echo     '--harmony',
@@ -66,7 +66,7 @@ echo.
 echo // Listen for the "start" event
 echo svc.on^('start', function^(^) {
 echo   console.log^('Service started successfully!'^);
-echo   console.log^('StreamedV3 is now running as a Windows service.'^);
+echo   console.log^('YTStreamer007 is now running as a Windows service.'^);
 echo }^);
 echo.
 echo // Install the service
@@ -81,14 +81,14 @@ echo ========================================
 echo   Installation Complete!
 echo ========================================
 echo.
-echo Service Name: StreamedV3 Bot
+echo Service Name: YTStreamer007 Bot
 echo Status: Running
 echo.
 echo The bot will now start automatically when Windows starts.
 echo.
 echo To manage the service:
 echo - Open Services (services.msc)
-echo - Find "StreamedV3 Bot"
+echo - Find "YTStreamer007 Bot"
 echo - Right-click to Stop/Start/Restart
 echo.
 echo To uninstall, run: uninstall-windows-service.bat

@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo   Setup StreamedV3 Auto-Start
+echo   Setup YTStreamer007 Auto-Start
 echo ========================================
 echo.
 echo Choose installation method:
@@ -48,17 +48,17 @@ set STARTUP_FOLDER=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup
 set SCRIPT_PATH=%CD%\start-dev.bat
 
 echo Creating shortcut in Startup folder...
-powershell -Command "$WS = New-Object -ComObject WScript.Shell; $SC = $WS.CreateShortcut('%STARTUP_FOLDER%\StreamedV3.lnk'); $SC.TargetPath = '%SCRIPT_PATH%'; $SC.WorkingDirectory = '%CD%'; $SC.Save()"
+powershell -Command "$WS = New-Object -ComObject WScript.Shell; $SC = $WS.CreateShortcut('%STARTUP_FOLDER%\YTStreamer007.lnk'); $SC.TargetPath = '%SCRIPT_PATH%'; $SC.WorkingDirectory = '%CD%'; $SC.Save()"
 
 echo.
 echo ========================================
 echo   Startup Folder Setup Complete!
 echo ========================================
 echo.
-echo StreamedV3 will start automatically when you log in.
+echo YTStreamer007 will start automatically when you log in.
 echo.
 echo Shortcut location:
-echo %STARTUP_FOLDER%\StreamedV3.lnk
+echo %STARTUP_FOLDER%\YTStreamer007.lnk
 echo.
 echo To remove: Delete the shortcut from Startup folder
 echo.
@@ -81,7 +81,7 @@ if %errorlevel% neq 0 (
 )
 
 REM Create task
-schtasks /create /tn "StreamedV3 Bot" /tr "%CD%\start-dev.bat" /sc onlogon /rl highest /f
+schtasks /create /tn "YTStreamer007 Bot" /tr "%CD%\start-dev.bat" /sc onlogon /rl highest /f
 
 if %errorlevel% equ 0 (
     echo.
@@ -89,7 +89,7 @@ if %errorlevel% equ 0 (
     echo   Task Scheduler Setup Complete!
     echo ========================================
     echo.
-    echo Task Name: StreamedV3 Bot
+    echo Task Name: YTStreamer007 Bot
     echo Trigger: At logon
     echo.
     echo To manage:
@@ -97,7 +97,7 @@ if %errorlevel% equ 0 (
     echo - Find "StreamedV3 Bot"
     echo.
     echo To remove:
-    echo   schtasks /delete /tn "StreamedV3 Bot" /f
+    echo   schtasks /delete /tn "YTStreamer007 Bot" /f
     echo.
 ) else (
     echo ERROR: Failed to create scheduled task!

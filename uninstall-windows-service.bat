@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo   Uninstalling StreamedV3 Windows Service
+echo   Uninstalling YTStreamer007 Windows Service
 echo ========================================
 echo.
 
@@ -24,14 +24,14 @@ echo const path = require^('path'^);
 echo.
 echo // Create a new service object
 echo const svc = new Service^({
-echo   name: 'StreamedV3 Bot',
+echo   name: 'YTStreamer007 Bot',
 echo   script: path.join^(__dirname, 'src', 'server.js'^)
 echo }^);
 echo.
 echo // Listen for the "uninstall" event
 echo svc.on^('uninstall', function^(^) {
 echo   console.log^('Service uninstalled successfully!'^);
-echo   console.log^('StreamedV3 service has been removed.'^);
+echo   console.log^('YTStreamer007 service has been removed.'^);
 echo }^);
 echo.
 echo // Uninstall the service
@@ -46,6 +46,6 @@ echo ========================================
 echo   Uninstallation Complete!
 echo ========================================
 echo.
-echo The StreamedV3 service has been removed.
+echo The YTStreamer007 service has been removed.
 echo.
 pause

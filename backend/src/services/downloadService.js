@@ -141,14 +141,32 @@ export class DownloadService {
       }
     }
 
-    // Simulate progress updates during download
+    // Enhanced progress tracking with realistic updates
+    let currentProgress = 0;
+    const progressSteps = [5, 15, 25, 40, 55, 70, 85, 95];
+    let stepIndex = 0;
+    
     const progressInterval = setInterval(() => {
       const downloadInfo = this.activeDownloads.get(downloadId);
-      if (downloadInfo && downloadInfo.progress < 90) {
-        downloadInfo.progress = Math.min(90, downloadInfo.progress + 10);
+      if (downloadInfo && stepIndex < progressSteps.length) {
+        currentProgress = progressSteps[stepIndex];
+        downloadInfo.progress = currentProgress;
+        
+        // Update status based on progress
+        if (currentProgress < 20) {
+          downloadInfo.status = 'initializing';
+        } else if (currentProgress < 50) {
+          downloadInfo.status = 'downloading';
+        } else if (currentProgress < 90) {
+          downloadInfo.status = 'processing';
+        } else {
+          downloadInfo.status = 'finalizing';
+        }
+        
         this.emitProgress(downloadId, downloadInfo);
+        stepIndex++;
       }
-    }, 2000);
+    }, 1500); // Update every 1.5 seconds for more realistic feel
 
     // Execute download - youtube-dl-exec returns a promise
     try {
@@ -160,10 +178,20 @@ export class DownloadService {
       const downloadInfo = this.activeDownloads.get(downloadId);
       if (downloadInfo) {
         downloadInfo.progress = 100;
+        downloadInfo.status = 'completed';
         this.emitProgress(downloadId, downloadInfo);
       }
     } catch (error) {
       clearInterval(progressInterval);
+      
+      // Update status to failed
+      const downloadInfo = this.activeDownloads.get(downloadId);
+      if (downloadInfo) {
+        downloadInfo.status = 'failed';
+        downloadInfo.error = error.message;
+        this.emitProgress(downloadId, downloadInfo);
+      }
+      
       console.error('Download execution error:', error);
       throw error;
     }

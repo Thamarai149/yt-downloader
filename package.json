@@ -1,7 +1,7 @@
 {
-  "name": "streamedv3-bot",
+  "name": "ytstreamer007-bot",
   "version": "1.0.0",
-  "description": "StreamedV3 YouTube Downloader Telegram Bot",
+  "description": "YTStreamer007 YouTube Downloader Telegram Bot",
   "main": "backend/src/server.js",
   "scripts": {
     "start": "cd backend && npm start",

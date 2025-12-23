@@ -1,5 +1,5 @@
 {
-  "name": "youtube-downloader-backend",
+  "name": "ytstreamer007-backend",
   "version": "3.0.0",
   "description": "Modern YouTube downloader backend with real-time progress",
   "main": "src/server.js",

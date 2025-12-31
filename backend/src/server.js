@@ -113,6 +113,17 @@ httpServer.listen(PORT, () => {
   console.log(`🚀 Backend API running on port ${PORT}`);
   console.log(`📁 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 API Endpoint: http://localhost:${PORT}/api`);
+}).on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use. Please try one of the following:`);
+    console.error(`   1. Stop the process using port ${PORT}`);
+    console.error(`   2. Change the PORT in your .env file`);
+    console.error(`   3. Use: npx kill-port ${PORT}`);
+    process.exit(1);
+  } else {
+    console.error('❌ Server error:', err);
+    process.exit(1);
+  }
 });
 
 export { io };

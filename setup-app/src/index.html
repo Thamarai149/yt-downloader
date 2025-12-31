@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YTStreamer007 Setup</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>YTStreamer007 Setup</h1>
+            <p>Configure and manage your YouTube downloader bot</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="showTab('settings')">Settings</button>
+            <button class="tab-button" onclick="showTab('server')">Server Control</button>
+            <button class="tab-button" onclick="showTab('install')">Installation</button>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="settings" class="tab-content active">
+            <h2>Configuration Settings</h2>
+            
+            <div class="form-group">
+                <label for="backendPath">Backend Path:</label>
+                <div class="path-input">
+                    <input type="text" id="backendPath" placeholder="Select backend folder...">
+                    <button onclick="selectBackendPath()">Browse</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="serverPort">Server Port:</label>
+                <input type="number" id="serverPort" value="3000" min="1000" max="65535">
+            </div>
+
+            <div class="form-group">
+                <label for="telegramToken">Telegram Bot Token:</label>
+                <input type="password" id="telegramToken" placeholder="Enter your bot token...">
+            </div>
+
+            <div class="form-group">
+                <label for="downloadPath">Download Path:</label>
+                <div class="path-input">
+                    <input type="text" id="downloadPath" placeholder="Select download folder...">
+                    <button onclick="selectDownloadPath()">Browse</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="autoStart">
+                    Auto-start server on application launch
+                </label>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn-primary" onclick="saveSettings()">Save Settings</button>
+                <button class="btn-secondary" onclick="loadSettings()">Reset</button>
+            </div>
+        </div>
+
+        <!-- Server Control Tab -->
+        <div id="server" class="tab-content">
+            <h2>Server Control</h2>
+            
+            <div class="server-status">
+                <div class="status-indicator">
+                    <span id="statusDot" class="status-dot stopped"></span>
+                    <span id="statusText">Server Stopped</span>
+                </div>
+            </div>
+
+            <div class="server-controls">
+                <button id="startBtn" class="btn-success" onclick="startServer()">Start Server</button>
+                <button id="stopBtn" class="btn-danger" onclick="stopServer()" disabled>Stop Server</button>
+                <button class="btn-secondary" onclick="checkStatus()">Check Status</button>
+            </div>
+
+            <div class="server-info">
+                <h3>Server Information</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <label>Web Interface:</label>
+                        <span id="webUrl">http://localhost:3000</span>
+                    </div>
+                    <div class="info-item">
+                        <label>API Endpoint:</label>
+                        <span id="apiUrl">http://localhost:3000/api</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="logs">
+                <h3>Server Logs</h3>
+                <div id="logOutput" class="log-output"></div>
+            </div>
+        </div>
+
+        <!-- Installation Tab -->
+        <div id="install" class="tab-content">
+            <h2>Installation & Dependencies</h2>
+            
+            <div class="install-section">
+                <h3>Backend Dependencies</h3>
+                <p>Install required Node.js packages for the backend server.</p>
+                <button class="btn-primary" onclick="installDependencies()">Install Dependencies</button>
+            </div>
+
+            <div class="install-progress">
+                <h3>Installation Progress</h3>
+                <div id="installOutput" class="install-output"></div>
+            </div>
+
+            <div class="requirements">
+                <h3>System Requirements</h3>
+                <ul>
+                    <li>Node.js 18.0.0 or higher</li>
+                    <li>NPM package manager</li>
+                    <li>Internet connection for downloads</li>
+                    <li>Telegram Bot Token (from @BotFather)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>

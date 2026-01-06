@@ -1,7 +1,8 @@
 {
-  "name": "ytstreamer007-setup",
+  "name": "ytstreamer-pro-manager",
   "version": "1.0.0",
-  "description": "YTStreamer007 Setup Application",
+  "description": "YTStreamer Pro Manager - Professional YouTube Downloader Control Panel",
+  "author": "YTStreamer Pro",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
@@ -10,8 +11,8 @@
     "dev": "electron . --dev"
   },
   "build": {
-    "appId": "com.ytstreamer007.setup",
-    "productName": "YTStreamer007 Setup",
+    "appId": "com.ytstreamer.promanager",
+    "productName": "YTStreamer Pro Manager",
     "directories": {
       "output": "dist"
     },
@@ -27,7 +28,9 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "allowElevation": true,
+      "perMachine": false
     }
   },
   "devDependencies": {
@@ -35,6 +38,7 @@
     "electron-builder": "^24.9.1"
   },
   "dependencies": {
-    "electron-store": "^8.1.0"
+    "electron-store": "^8.1.0",
+    "socket.io-client": "^4.8.3"
   }
 }

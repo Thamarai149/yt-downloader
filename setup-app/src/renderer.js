@@ -1,12 +1,53 @@
 // Global variables
 let currentSettings = {};
+let downloadQueue = [];
+let activeDownloads = [];
+let completedDownloads = [];
+let currentTheme = 'dark';
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', async () => {
     await loadSettings();
     await checkServerStatus();
     setupEventListeners();
+    setupKeyboardShortcuts();
+    initializeTheme();
+    loadWallpaperSettings();
+    loadUISettings();
+    updateStats();
 });
+
+// Setup keyboard shortcuts
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Ctrl+Enter to search/download
+        if (e.ctrlKey && e.key === 'Enter') {
+            e.preventDefault();
+            const urlInput = document.getElementById('urlInput');
+            if (urlInput.value.trim()) {
+                searchVideo();
+            }
+        }
+        
+        // F5 to refresh status
+        if (e.key === 'F5') {
+            e.preventDefault();
+            checkServerStatus();
+        }
+        
+        // Ctrl+S to save settings
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            saveSettings();
+        }
+        
+        // Escape to close panels
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            closeAllPanels();
+        }
+    });
+}
 
 // Setup event listeners
 function setupEventListeners() {
@@ -15,67 +56,981 @@ function setupEventListeners() {
         updateServerStatus(data.running, data.error);
     });
 
+    // Backend log updates
+    window.electronAPI.onBackendLog((data) => {
+        appendToServerLog(data);
+    });
+
     // Installation progress updates
     window.electronAPI.onInstallProgress((data) => {
         appendToInstallOutput(data);
     });
+
+    // UI Event Listeners
+    setupUIEventListeners();
 }
 
-// Tab management
-function showTab(tabName) {
-    // Hide all tabs
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
+function setupUIEventListeners() {
+    // Search button
+    const searchBtn = document.getElementById('searchBtn');
+    if (searchBtn) {
+        searchBtn.addEventListener('click', searchVideo);
+    }
+
+    // URL input enter key
+    const urlInput = document.getElementById('urlInput');
+    if (urlInput) {
+        urlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchVideo();
+            }
+        });
+    }
+
+    // Download buttons
+    const downloadBtn = document.getElementById('downloadBtn');
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', downloadVideo);
+    }
+
+    const addToQueueBtn = document.getElementById('addToQueueBtn');
+    if (addToQueueBtn) {
+        addToQueueBtn.addEventListener('click', addToQueue);
+    }
+
+    // Panel buttons
+    const settingsBtn = document.getElementById('settingsBtn');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            togglePanel('settingsPanel');
+        });
+    }
+
+    const historyBtn = document.getElementById('historyBtn');
+    if (historyBtn) {
+        historyBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            togglePanel('historyPanel');
+        });
+    }
+
+    // FAB button
+    const fabBtn = document.getElementById('fabBtn');
+    if (fabBtn) {
+        fabBtn.addEventListener('click', toggleFabMenu);
+    }
+
+    // Close buttons
+    document.querySelectorAll('.close-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const panel = e.target.closest('.side-panel');
+            if (panel) {
+                panel.classList.add('hidden');
+                document.getElementById('overlay').classList.add('hidden');
+            }
+        });
     });
-    
-    // Remove active class from all buttons
-    document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    // Show selected tab
-    document.getElementById(tabName).classList.add('active');
-    
-    // Add active class to clicked button
-    event.target.classList.add('active');
+
+    // Theme toggle
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+    }
+
+    // Clear completed button
+    const clearCompletedBtn = document.getElementById('clearCompletedBtn');
+    if (clearCompletedBtn) {
+        clearCompletedBtn.addEventListener('click', clearCompleted);
+    }
+
+    // Save settings button (Settings Panel - UI settings only)
+    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+    if (saveSettingsBtn) {
+        saveSettingsBtn.addEventListener('click', saveUISettings);
+    }
+
+    // Save control panel button (Control Panel - Electron settings)
+    const saveControlPanelBtn = document.getElementById('saveControlPanelBtn');
+    if (saveControlPanelBtn) {
+        saveControlPanelBtn.addEventListener('click', saveSettings);
+    }
+
+    // FAB Action buttons
+    const fabControl = document.getElementById('fabControl');
+    if (fabControl) {
+        fabControl.addEventListener('click', () => {
+            togglePanel('controlPanel');
+            closeFabMenu();
+        });
+    }
+
+    const fabSchedule = document.getElementById('fabSchedule');
+    if (fabSchedule) {
+        fabSchedule.addEventListener('click', () => {
+            showToast('Schedule Download - Coming Soon!', 'info');
+            closeFabMenu();
+        });
+    }
+
+    const fabShare = document.getElementById('fabShare');
+    if (fabShare) {
+        fabShare.addEventListener('click', () => {
+            shareCurrentVideo();
+            closeFabMenu();
+        });
+    }
+    const uploadWallpaper = document.getElementById('uploadWallpaper');
+    if (uploadWallpaper) {
+        uploadWallpaper.addEventListener('click', () => {
+            document.getElementById('wallpaperInput').click();
+        });
+    }
+
+    // Remove wallpaper button
+    const removeWallpaper = document.getElementById('removeWallpaper');
+    if (removeWallpaper) {
+        removeWallpaper.addEventListener('click', removeWallpaperImage);
+    }
+
+    // Wallpaper input change
+    const wallpaperInput = document.getElementById('wallpaperInput');
+    if (wallpaperInput) {
+        wallpaperInput.addEventListener('change', handleWallpaperUpload);
+    }
+
+    // Opacity slider
+    const opacitySlider = document.getElementById('wallpaperOpacity');
+    if (opacitySlider) {
+        opacitySlider.addEventListener('input', updateWallpaperOpacity);
+    }
+
+    // Blur slider
+    const blurSlider = document.getElementById('wallpaperBlur');
+    if (blurSlider) {
+        blurSlider.addEventListener('input', updateWallpaperBlur);
+    }
+
+    // Theme select
+    const themeSelect = document.getElementById('themeSelect');
+    if (themeSelect) {
+        themeSelect.addEventListener('change', (e) => {
+            if (e.target.value !== 'auto') {
+                currentTheme = e.target.value;
+                document.documentElement.setAttribute('data-theme', currentTheme);
+                localStorage.setItem('theme', currentTheme);
+                showToast(`Switched to ${currentTheme} mode`, 'info');
+            }
+        });
+    }
+
+    // Auto download checkbox
+    const autoDownload = document.getElementById('autoDownload');
+    if (autoDownload) {
+        autoDownload.addEventListener('change', (e) => {
+            localStorage.setItem('autoDownload', e.target.checked);
+        });
+    }
+
+    // Show notifications checkbox
+    const showNotifications = document.getElementById('showNotifications');
+    if (showNotifications) {
+        showNotifications.addEventListener('change', (e) => {
+            localStorage.setItem('showNotifications', e.target.checked);
+        });
+    }
+
+    // Overlay click to close
+    const overlay = document.getElementById('overlay');
+    if (overlay) {
+        overlay.addEventListener('click', closeAllPanels);
+    }
 }
 
-// Settings management
+// Panel management
+function togglePanel(panelId) {
+    const panel = document.getElementById(panelId);
+    const overlay = document.getElementById('overlay');
+    
+    // Close FAB menu first
+    closeFabMenu();
+    
+    if (!panel) {
+        console.error(`Panel with id '${panelId}' not found`);
+        return;
+    }
+    
+    if (panel.classList.contains('hidden')) {
+        // Close all other panels first
+        closeAllPanels();
+        // Open this panel
+        panel.classList.remove('hidden');
+        if (overlay) {
+            overlay.classList.remove('hidden');
+        }
+    } else {
+        // Close this panel
+        panel.classList.add('hidden');
+        if (overlay) {
+            overlay.classList.add('hidden');
+        }
+    }
+}
+
+function closeAllPanels() {
+    document.querySelectorAll('.side-panel').forEach(panel => {
+        panel.classList.add('hidden');
+    });
+    const overlay = document.getElementById('overlay');
+    if (overlay) {
+        overlay.classList.add('hidden');
+    }
+}
+
+// Theme management
+function initializeTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    currentTheme = savedTheme;
+    document.documentElement.setAttribute('data-theme', currentTheme);
+}
+
+function toggleTheme() {
+    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    localStorage.setItem('theme', currentTheme);
+    showToast(`Switched to ${currentTheme} mode`, 'info');
+}
+
+// Panel management
+function closeAllPanels() {
+    document.querySelectorAll('.side-panel').forEach(panel => {
+        panel.classList.add('hidden');
+    });
+    document.getElementById('overlay').classList.add('hidden');
+    closeFabMenu();
+}
+
+// Video search and download functionality
+async function searchVideo() {
+    const urlInput = document.getElementById('urlInput');
+    const url = urlInput.value.trim();
+    
+    if (!url) {
+        showToast('Please enter a YouTube URL', 'warning');
+        return;
+    }
+
+    if (!isValidYouTubeUrl(url)) {
+        showToast('Please enter a valid YouTube URL', 'error');
+        return;
+    }
+
+    const searchBtn = document.getElementById('searchBtn');
+    const originalText = searchBtn.innerHTML;
+    searchBtn.innerHTML = '<img src="../assets/icons/search.svg" alt="Searching" width="16" height="16"> Searching...';
+    searchBtn.disabled = true;
+
+    try {
+        // Check if backend server is running
+        const serverStatus = await window.electronAPI.getBackendStatus();
+        console.log('Backend status:', serverStatus);
+        
+        if (!serverStatus.running) {
+            showToast('Backend server is not running. Please start it from Control Panel.', 'warning');
+            
+            // Still try to show basic video info
+            const videoId = extractVideoId(url);
+            if (videoId) {
+                const fallbackData = {
+                    title: 'YouTube Video (Start backend for full info)',
+                    thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+                    duration: null,
+                    viewCount: null,
+                    uploader: 'Unknown Channel',
+                    id: videoId
+                };
+                
+                displayVideoInfo(fallbackData);
+                showDownloadOptions();
+            }
+            return;
+        }
+
+        // Make API call to backend server to get video info
+        const serverPort = currentSettings.serverPort || 3000;
+        const apiUrl = `http://localhost:${serverPort}/api/video/info?url=${encodeURIComponent(url)}`;
+        console.log('Making API request to:', apiUrl);
+        
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            timeout: 10000 // 10 second timeout
+        });
+
+        console.log('API response status:', response.status);
+
+        if (!response.ok) {
+            throw new Error(`Server responded with status: ${response.status}`);
+        }
+
+        const videoData = await response.json();
+        console.log('API response data:', videoData);
+        
+        if (!videoData.success) {
+            throw new Error(videoData.error || 'Failed to fetch video information');
+        }
+
+        // Use real video data from backend (videoData.data contains the actual video info)
+        displayVideoInfo(videoData.data);
+        showDownloadOptions();
+        showToast('Video information loaded!', 'success');
+        
+    } catch (error) {
+        console.error('Search failed:', error);
+        
+        // Fallback to basic video info extraction from URL
+        const videoId = extractVideoId(url);
+        if (videoId) {
+            const fallbackData = {
+                title: 'YouTube Video',
+                thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+                duration: null,
+                viewCount: null,
+                uploader: 'Unknown Channel',
+                id: videoId
+            };
+            
+            displayVideoInfo(fallbackData);
+            showDownloadOptions();
+            showToast('Video loaded (limited info - start backend for full details)', 'info');
+        } else {
+            showToast('Failed to fetch video information. Please check the URL and ensure backend is running.', 'error');
+        }
+    } finally {
+        searchBtn.innerHTML = originalText;
+        searchBtn.disabled = false;
+    }
+}
+
+function displayVideoInfo(videoData) {
+    const videoInfo = document.getElementById('videoInfo');
+    const thumbnail = document.getElementById('videoThumbnail');
+    const title = document.getElementById('videoTitle');
+    const meta = document.getElementById('videoMeta');
+
+    // Handle different thumbnail sources
+    if (videoData.thumbnail) {
+        thumbnail.src = videoData.thumbnail;
+        thumbnail.onerror = function() {
+            // Fallback to YouTube thumbnail if custom thumbnail fails
+            if (videoData.id) {
+                this.src = `https://img.youtube.com/vi/${videoData.id}/maxresdefault.jpg`;
+            }
+        };
+    }
+    
+    // Set title with fallback
+    title.textContent = videoData.title || 'YouTube Video';
+    
+    // Build meta information
+    const metaParts = [];
+    
+    // Format duration
+    if (videoData.duration) {
+        const duration = formatDuration(videoData.duration);
+        metaParts.push(duration);
+    }
+    
+    // Format view count
+    if (videoData.viewCount) {
+        const views = formatViewCount(videoData.viewCount);
+        metaParts.push(views);
+    }
+    
+    // Add uploader/channel
+    if (videoData.uploader) {
+        metaParts.push(videoData.uploader);
+    }
+    
+    meta.textContent = metaParts.join(' • ') || 'Video information';
+
+    videoInfo.classList.remove('hidden');
+}
+
+// Helper function to format duration from seconds to HH:MM:SS or MM:SS
+function formatDuration(seconds) {
+    if (!seconds || seconds === 0) return 'Unknown';
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    if (hours > 0) {
+        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    } else {
+        return `${minutes}:${secs.toString().padStart(2, '0')}`;
+    }
+}
+
+// Helper function to format view count
+function formatViewCount(count) {
+    if (!count || count === 0) return 'No views';
+    
+    if (count >= 1000000) {
+        return `${(count / 1000000).toFixed(1)}M views`;
+    } else if (count >= 1000) {
+        return `${(count / 1000).toFixed(1)}K views`;
+    } else {
+        return `${count} views`;
+    }
+}
+
+function showDownloadOptions() {
+    const downloadOptions = document.getElementById('downloadOptions');
+    downloadOptions.classList.remove('hidden');
+}
+
+function isValidYouTubeUrl(url) {
+    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/;
+    return youtubeRegex.test(url);
+}
+
+function extractVideoId(url) {
+    // Extract video ID from various YouTube URL formats
+    const regexPatterns = [
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+        /youtube\.com\/watch\?.*v=([^&\n?#]+)/
+    ];
+    
+    for (const pattern of regexPatterns) {
+        const match = url.match(pattern);
+        if (match && match[1]) {
+            return match[1];
+        }
+    }
+    return null;
+}
+
+async function downloadVideo() {
+    const urlInput = document.getElementById('urlInput');
+    const qualitySelect = document.getElementById('qualitySelect');
+    const typeRadios = document.querySelectorAll('input[name="type"]');
+    
+    if (!urlInput.value.trim()) {
+        showToast('Please enter a YouTube URL first', 'warning');
+        return;
+    }
+    
+    let selectedType = 'video';
+    typeRadios.forEach(radio => {
+        if (radio.checked) selectedType = radio.value;
+    });
+
+    const downloadData = {
+        url: urlInput.value.trim(),
+        quality: qualitySelect.value,
+        type: selectedType
+    };
+
+    console.log('Starting download with data:', downloadData);
+
+    try {
+        // Check if backend server is running
+        const serverStatus = await window.electronAPI.getBackendStatus();
+        if (!serverStatus.running) {
+            showToast('Backend server is not running. Please start it from Control Panel.', 'error');
+            return;
+        }
+
+        // Make API call to backend server to start download
+        const serverPort = currentSettings.serverPort || 3000;
+        const response = await fetch(`http://localhost:${serverPort}/api/download`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(downloadData)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server responded with status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('Download API response:', result);
+
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to start download');
+        }
+
+        // Add to active downloads with real download info from backend
+        const download = {
+            id: result.data.id,
+            url: result.data.url,
+            title: result.data.title,
+            type: result.data.type,
+            quality: result.data.quality,
+            progress: result.data.progress || 0,
+            status: result.data.status || 'downloading',
+            startTime: new Date(result.data.startTime),
+            outputPath: result.data.outputPath
+        };
+
+        activeDownloads.push(download);
+        updateDownloadsList();
+        updateStats();
+        
+        showToast(`Download started: ${download.title}`, 'success');
+        
+        // Set up Socket.IO listener for this download if not already set up
+        setupDownloadProgressListener();
+        
+    } catch (error) {
+        console.error('Download failed:', error);
+        showToast(`Download failed: ${error.message}`, 'error');
+    }
+}
+
+async function addToQueue() {
+    const urlInput = document.getElementById('urlInput');
+    const qualitySelect = document.getElementById('qualitySelect');
+    const typeRadios = document.querySelectorAll('input[name="type"]');
+    
+    if (!urlInput.value.trim()) {
+        showToast('Please enter a YouTube URL first', 'warning');
+        return;
+    }
+    
+    let selectedType = 'video';
+    typeRadios.forEach(radio => {
+        if (radio.checked) selectedType = radio.value;
+    });
+
+    const queueItem = {
+        id: Date.now().toString(),
+        url: urlInput.value.trim(),
+        quality: qualitySelect.value,
+        type: selectedType,
+        title: document.getElementById('videoTitle').textContent || 'Unknown Video',
+        addedTime: new Date()
+    };
+
+    downloadQueue.push(queueItem);
+    updateStats();
+    showToast('Added to download queue!', 'info');
+    
+    // Auto-start download if no active downloads
+    if (activeDownloads.length === 0) {
+        processQueue();
+    }
+}
+
+// Process download queue
+async function processQueue() {
+    if (downloadQueue.length === 0 || activeDownloads.length > 0) {
+        return; // No items in queue or already downloading
+    }
+    
+    const nextItem = downloadQueue.shift();
+    
+    try {
+        // Check if backend server is running
+        const serverStatus = await window.electronAPI.getBackendStatus();
+        if (!serverStatus.running) {
+            showToast('Backend server is not running. Queue paused.', 'warning');
+            // Put item back at front of queue
+            downloadQueue.unshift(nextItem);
+            return;
+        }
+
+        // Start download
+        const downloadData = {
+            url: nextItem.url,
+            quality: nextItem.quality,
+            type: nextItem.type
+        };
+
+        const serverPort = currentSettings.serverPort || 3000;
+        const response = await fetch(`http://localhost:${serverPort}/api/download`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(downloadData)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server responded with status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to start download');
+        }
+
+        // Add to active downloads
+        const download = {
+            id: result.data.id,
+            url: result.data.url,
+            title: result.data.title,
+            type: result.data.type,
+            quality: result.data.quality,
+            progress: result.data.progress || 0,
+            status: result.data.status || 'downloading',
+            startTime: new Date(result.data.startTime),
+            outputPath: result.data.outputPath
+        };
+
+        activeDownloads.push(download);
+        updateDownloadsList();
+        updateStats();
+        
+        showToast(`Started from queue: ${download.title}`, 'success');
+        
+        // Set up Socket.IO listener
+        setupDownloadProgressListener();
+        
+    } catch (error) {
+        console.error('Queue processing failed:', error);
+        showToast(`Queue download failed: ${error.message}`, 'error');
+        
+        // Continue processing queue after a delay
+        setTimeout(() => {
+            processQueue();
+        }, 2000);
+    }
+}
+
+// IPC-based download progress listener (replaces direct Socket.IO)
+let progressListenerSetup = false;
+
+function setupDownloadProgressListener() {
+    if (progressListenerSetup) return;
+    
+    try {
+        // Use IPC to communicate with main process for Socket.IO
+        window.electronAPI.setupDownloadListener();
+        
+        // Listen for download progress from main process
+        window.electronAPI.onDownloadProgress((data) => {
+            console.log('Download progress update:', data);
+            updateDownloadProgress(data);
+        });
+        
+        progressListenerSetup = true;
+        console.log('Download progress listener setup complete');
+    } catch (error) {
+        console.error('Failed to setup download progress listener:', error);
+    }
+}
+
+function updateDownloadProgress(progressData) {
+    const { downloadId, title, progress, status, error } = progressData;
+    
+    // Find the download in active downloads
+    const downloadIndex = activeDownloads.findIndex(d => d.id === downloadId);
+    
+    if (downloadIndex !== -1) {
+        const download = activeDownloads[downloadIndex];
+        download.progress = progress || 0;
+        download.status = status || 'downloading';
+        
+        if (error) {
+            download.error = error;
+        }
+        
+        // If download is completed, failed, or cancelled, move to completed downloads
+        if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+            download.endTime = new Date();
+            
+            // Move to completed
+            activeDownloads.splice(downloadIndex, 1);
+            completedDownloads.unshift(download);
+            
+            if (status === 'completed') {
+                showToast(`Download completed: ${title}`, 'success');
+            } else if (status === 'failed') {
+                showToast(`Download failed: ${title}`, 'error');
+            } else if (status === 'cancelled') {
+                showToast(`Download cancelled: ${title}`, 'info');
+            }
+            
+            // Process next item in queue if available
+            setTimeout(() => {
+                processQueue();
+            }, 1000);
+        }
+        
+        updateDownloadsList();
+        updateStats();
+    }
+}
+
+// Real download function (replaces simulateDownload)
+async function startRealDownload(downloadData) {
+    try {
+        const serverPort = currentSettings.serverPort || 3000;
+        const response = await fetch(`http://localhost:${serverPort}/api/download`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(downloadData)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server responded with status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to start download');
+        }
+
+        return result.data;
+    } catch (error) {
+        console.error('Real download failed:', error);
+        throw error;
+    }
+}
+
+function updateDownloadsList() {
+    const downloadsList = document.getElementById('downloadsList');
+    const allDownloads = [...activeDownloads, ...completedDownloads];
+    
+    if (allDownloads.length === 0) {
+        downloadsList.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📥</div>
+                <p>No downloads yet</p>
+            </div>
+        `;
+        return;
+    }
+
+    downloadsList.innerHTML = allDownloads.map(download => `
+        <div class="download-card">
+            <div class="download-header">
+                <div class="download-title">${download.title}</div>
+                <div class="download-actions">
+                    <div class="download-status status-${download.status}">
+                        <img src="../assets/icons/${getStatusIcon(download.status)}.svg" alt="${download.status}" width="12" height="12">
+                        ${formatStatus(download.status)}
+                    </div>
+                    ${download.status === 'downloading' || download.status === 'initializing' || download.status === 'processing' || download.status === 'finalizing' ? `
+                        <button class="cancel-btn" onclick="cancelDownload('${download.id}')" title="Cancel Download">
+                            <img src="../assets/icons/delete.svg" alt="Cancel" width="14" height="14">
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+            <div class="download-meta">
+                <img src="../assets/icons/${download.type}.svg" alt="${download.type}" width="12" height="12">
+                ${download.type} • ${download.quality}p • ${formatTime(download.startTime)}
+            </div>
+            ${(download.status === 'downloading' || download.status === 'initializing' || download.status === 'processing' || download.status === 'finalizing') ? `
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${download.progress || 0}%"></div>
+                </div>
+                <div class="progress-text">${Math.round(download.progress || 0)}%</div>
+            ` : ''}
+            ${download.status === 'failed' && download.error ? `
+                <div class="error-message">
+                    <img src="../assets/icons/error.svg" alt="Error" width="12" height="12">
+                    ${download.error}
+                </div>
+            ` : ''}
+        </div>
+    `).join('');
+}
+
+// Helper function to get appropriate status icon
+function getStatusIcon(status) {
+    switch (status) {
+        case 'downloading':
+        case 'initializing':
+        case 'processing':
+        case 'finalizing':
+            return 'download';
+        case 'completed':
+            return 'success';
+        case 'failed':
+        case 'cancelled':
+            return 'error';
+        default:
+            return 'info';
+    }
+}
+
+// Helper function to format status text
+function formatStatus(status) {
+    switch (status) {
+        case 'initializing':
+            return 'Initializing';
+        case 'downloading':
+            return 'Downloading';
+        case 'processing':
+            return 'Processing';
+        case 'finalizing':
+            return 'Finalizing';
+        case 'completed':
+            return 'Completed';
+        case 'failed':
+            return 'Failed';
+        case 'cancelled':
+            return 'Cancelled';
+        default:
+            return status;
+    }
+}
+
+function updateStats() {
+    document.getElementById('queueCount').textContent = `${downloadQueue.length} Queue`;
+    document.getElementById('activeDownloads').textContent = `${activeDownloads.length} Active`;
+    document.getElementById('completedDownloads').textContent = `${completedDownloads.length} Completed`;
+}
+
+function clearCompleted() {
+    completedDownloads.length = 0;
+    updateDownloadsList();
+    updateStats();
+    showToast('Completed downloads cleared', 'info');
+}
+
+// Cancel download function
+async function cancelDownload(downloadId) {
+    try {
+        console.log('Cancelling download:', downloadId);
+        
+        // Find the download in active downloads
+        const downloadIndex = activeDownloads.findIndex(d => d.id === downloadId);
+        if (downloadIndex === -1) {
+            showToast('Download not found', 'error');
+            return;
+        }
+        
+        const download = activeDownloads[downloadIndex];
+        
+        // Check if backend server is running
+        const serverStatus = await window.electronAPI.getBackendStatus();
+        if (!serverStatus.running) {
+            // If backend is not running, just remove from local list
+            download.status = 'cancelled';
+            download.endTime = new Date();
+            
+            activeDownloads.splice(downloadIndex, 1);
+            completedDownloads.unshift(download);
+            
+            updateDownloadsList();
+            updateStats();
+            showToast(`Download cancelled: ${download.title}`, 'info');
+            return;
+        }
+
+        // Make API call to backend to cancel download
+        const serverPort = currentSettings.serverPort || 3000;
+        const response = await fetch(`http://localhost:${serverPort}/api/download/${downloadId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server responded with status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('Cancel API response:', result);
+
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to cancel download');
+        }
+
+        // Update local download status
+        download.status = 'cancelled';
+        download.endTime = new Date();
+        
+        // Move to completed downloads
+        activeDownloads.splice(downloadIndex, 1);
+        completedDownloads.unshift(download);
+        
+        updateDownloadsList();
+        updateStats();
+        showToast(`Download cancelled: ${download.title}`, 'info');
+        
+        // Process next item in queue if available
+        setTimeout(() => {
+            processQueue();
+        }, 1000);
+        
+    } catch (error) {
+        console.error('Cancel download failed:', error);
+        showToast(`Failed to cancel download: ${error.message}`, 'error');
+    }
+}
+
+function formatTime(date) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// Settings management (existing functionality)
 async function loadSettings() {
     try {
         currentSettings = await window.electronAPI.getSettings();
         
-        document.getElementById('backendPath').value = currentSettings.backendPath || '';
-        document.getElementById('serverPort').value = currentSettings.serverPort || 3000;
-        document.getElementById('telegramToken').value = currentSettings.telegramToken || '';
-        document.getElementById('downloadPath').value = currentSettings.downloadPath || '';
-        document.getElementById('autoStart').checked = currentSettings.autoStart || false;
+        // Update form fields if they exist
+        const backendPath = document.getElementById('backendPath');
+        const serverPort = document.getElementById('serverPort');
+        const downloadPath = document.getElementById('downloadPath');
+        const autoStart = document.getElementById('autoStart');
         
-        // Update server URLs
-        updateServerUrls(currentSettings.serverPort || 3000);
+        if (backendPath) backendPath.value = currentSettings.backendPath || '';
+        if (serverPort) serverPort.value = currentSettings.serverPort || 3000;
+        if (downloadPath) downloadPath.value = currentSettings.downloadPath || '';
+        if (autoStart) autoStart.checked = currentSettings.autoStart || false;
+        
     } catch (error) {
         console.error('Failed to load settings:', error);
-        showNotification('Failed to load settings', 'error');
+        showToast('Failed to load settings', 'error');
     }
 }
 
 async function saveSettings() {
     try {
+        console.log('Saving Control Panel settings...');
+        
+        const backendPath = document.getElementById('backendPath');
+        const serverPort = document.getElementById('serverPort');
+        const autoStart = document.getElementById('autoStart');
+        
+        // Only get values from elements that exist in Control Panel
         const settings = {
-            backendPath: document.getElementById('backendPath').value,
-            serverPort: parseInt(document.getElementById('serverPort').value),
-            telegramToken: document.getElementById('telegramToken').value,
-            downloadPath: document.getElementById('downloadPath').value,
-            autoStart: document.getElementById('autoStart').checked
+            backendPath: backendPath ? backendPath.value.trim() : (currentSettings.backendPath || ''),
+            serverPort: serverPort ? parseInt(serverPort.value) || 3000 : (currentSettings.serverPort || 3000),
+            autoStart: autoStart ? autoStart.checked : (currentSettings.autoStart || false)
         };
         
-        await window.electronAPI.saveSettings(settings);
-        currentSettings = settings;
-        updateServerUrls(settings.serverPort);
-        showNotification('Settings saved successfully!', 'success');
+        console.log('Settings to save:', settings);
+        
+        const result = await window.electronAPI.saveSettings(settings);
+        console.log('Save result:', result);
+        
+        if (result) {
+            currentSettings = { ...currentSettings, ...settings };
+            showToast('Control Panel settings saved successfully!', 'success');
+        } else {
+            throw new Error('Save operation returned false');
+        }
     } catch (error) {
-        console.error('Failed to save settings:', error);
-        showNotification('Failed to save settings', 'error');
+        console.error('Failed to save Control Panel settings:', error);
+        showToast(`Failed to save settings: ${error.message}`, 'error');
     }
 }
 
@@ -87,7 +1042,7 @@ async function selectBackendPath() {
         }
     } catch (error) {
         console.error('Failed to select backend path:', error);
-        showNotification('Failed to select folder', 'error');
+        showToast('Failed to select folder', 'error');
     }
 }
 
@@ -99,23 +1054,23 @@ async function selectDownloadPath() {
         }
     } catch (error) {
         console.error('Failed to select download path:', error);
-        showNotification('Failed to select folder', 'error');
+        showToast('Failed to select folder', 'error');
     }
 }
 
-// Server management
+// Server management (existing functionality)
 async function startServer() {
     try {
         const result = await window.electronAPI.startBackend();
         if (result.success) {
-            showNotification('Server starting...', 'info');
+            showToast('Server starting...', 'info');
             updateServerStatus(true);
         } else {
-            showNotification(`Failed to start server: ${result.error}`, 'error');
+            showToast(`Failed to start server: ${result.error}`, 'error');
         }
     } catch (error) {
         console.error('Failed to start server:', error);
-        showNotification('Failed to start server', 'error');
+        showToast('Failed to start server', 'error');
     }
 }
 
@@ -123,14 +1078,14 @@ async function stopServer() {
     try {
         const result = await window.electronAPI.stopBackend();
         if (result.success) {
-            showNotification('Server stopped', 'info');
+            showToast('Server stopped', 'info');
             updateServerStatus(false);
         } else {
-            showNotification(`Failed to stop server: ${result.error}`, 'error');
+            showToast(`Failed to stop server: ${result.error}`, 'error');
         }
     } catch (error) {
         console.error('Failed to stop server:', error);
-        showNotification('Failed to stop server', 'error');
+        showToast('Failed to stop server', 'error');
     }
 }
 
@@ -138,6 +1093,21 @@ async function checkServerStatus() {
     try {
         const status = await window.electronAPI.getBackendStatus();
         updateServerStatus(status.running);
+        
+        // Also try to ping the actual server
+        if (status.running) {
+            try {
+                const response = await fetch('http://localhost:3000/api', { 
+                    method: 'GET',
+                    timeout: 5000 
+                });
+                if (response.ok) {
+                    console.log('✅ Server is responding at http://localhost:3000');
+                }
+            } catch (fetchError) {
+                console.log('⚠️ Server process running but connection failed');
+            }
+        }
     } catch (error) {
         console.error('Failed to check server status:', error);
     }
@@ -149,103 +1119,347 @@ function updateServerStatus(running, error = null) {
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
     
-    if (running) {
-        statusDot.className = 'status-dot running';
-        statusText.textContent = 'Server Running';
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-    } else {
-        statusDot.className = 'status-dot stopped';
-        statusText.textContent = error ? `Server Error: ${error}` : 'Server Stopped';
-        startBtn.disabled = false;
-        stopBtn.disabled = true;
-    }
-}
-
-function updateServerUrls(port) {
-    document.getElementById('webUrl').textContent = `http://localhost:${port}`;
-    document.getElementById('apiUrl').textContent = `http://localhost:${port}/api`;
-}
-
-// Installation management
-async function installDependencies() {
-    try {
-        const installOutput = document.getElementById('installOutput');
-        installOutput.textContent = 'Starting installation...\n';
-        
-        const result = await window.electronAPI.installDependencies();
-        
-        if (result.success) {
-            appendToInstallOutput('\n✅ Installation completed successfully!\n');
-            showNotification('Dependencies installed successfully!', 'success');
+    if (statusDot && statusText) {
+        if (running) {
+            statusDot.className = 'status-dot running';
+            statusText.textContent = 'Server Running';
         } else {
-            appendToInstallOutput(`\n❌ Installation failed with exit code: ${result.exitCode}\n`);
-            showNotification('Installation failed', 'error');
+            statusDot.className = 'status-dot stopped';
+            statusText.textContent = error ? `Server Error: ${error}` : 'Server Stopped';
         }
-    } catch (error) {
-        console.error('Failed to install dependencies:', error);
-        showNotification('Failed to install dependencies', 'error');
+    }
+    
+    if (startBtn && stopBtn) {
+        startBtn.disabled = running;
+        stopBtn.disabled = !running;
     }
 }
 
-function appendToInstallOutput(text) {
-    const installOutput = document.getElementById('installOutput');
-    installOutput.textContent += text;
-    installOutput.scrollTop = installOutput.scrollHeight;
+// Toast notifications
+function showToast(message, type = 'info') {
+    const toastContainer = document.getElementById('toastContainer');
+    if (!toastContainer) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+
+    toastContainer.appendChild(toast);
+
+    // Remove after 3 seconds
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
 }
 
 // Utility functions
-function showNotification(message, type = 'info') {
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.textContent = message;
-    
-    // Style the notification
-    Object.assign(notification.style, {
-        position: 'fixed',
-        top: '20px',
-        right: '20px',
-        padding: '1rem 1.5rem',
-        borderRadius: '8px',
-        color: 'white',
-        fontWeight: '600',
-        zIndex: '1000',
-        opacity: '0',
-        transform: 'translateX(100%)',
-        transition: 'all 0.3s ease'
-    });
-    
-    // Set background color based on type
-    const colors = {
-        success: '#28a745',
-        error: '#dc3545',
-        info: '#17a2b8',
-        warning: '#ffc107'
-    };
-    notification.style.backgroundColor = colors[type] || colors.info;
-    
-    // Add to DOM
-    document.body.appendChild(notification);
-    
-    // Animate in
-    setTimeout(() => {
-        notification.style.opacity = '1';
-        notification.style.transform = 'translateX(0)';
-    }, 100);
-    
-    // Remove after 3 seconds
-    setTimeout(() => {
-        notification.style.opacity = '0';
-        notification.style.transform = 'translateX(100%)';
-        setTimeout(() => {
-            document.body.removeChild(notification);
-        }, 300);
-    }, 3000);
+function appendToServerLog(text) {
+    console.log('Server log:', text);
+}
+
+function appendToInstallOutput(text) {
+    console.log('Install output:', text);
 }
 
 // Cleanup on page unload
 window.addEventListener('beforeunload', () => {
-    window.electronAPI.removeAllListeners('backend-status');
-    window.electronAPI.removeAllListeners('install-progress');
+    if (window.electronAPI && window.electronAPI.removeAllListeners) {
+        window.electronAPI.removeAllListeners('backend-status');
+        window.electronAPI.removeAllListeners('backend-log');
+        window.electronAPI.removeAllListeners('install-progress');
+        window.electronAPI.removeAllListeners('download-progress');
+    }
+});
+
+// Wallpaper functionality
+function handleWallpaperUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+        showToast('Please select an image file', 'error');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const imageUrl = e.target.result;
+        
+        // Show preview
+        const preview = document.getElementById('wallpaperPreview');
+        const img = document.getElementById('wallpaperImg');
+        img.src = imageUrl;
+        preview.classList.remove('hidden');
+        
+        // Apply wallpaper
+        document.documentElement.style.setProperty('--wallpaper-url', `url(${imageUrl})`);
+        document.body.classList.add('has-wallpaper');
+        
+        // Save to localStorage
+        localStorage.setItem('wallpaperImage', imageUrl);
+        
+        showToast('Wallpaper uploaded successfully!', 'success');
+    };
+    
+    reader.readAsDataURL(file);
+}
+
+function removeWallpaperImage() {
+    // Remove wallpaper
+    document.documentElement.style.removeProperty('--wallpaper-url');
+    document.body.classList.remove('has-wallpaper');
+    
+    // Hide preview
+    const preview = document.getElementById('wallpaperPreview');
+    preview.classList.add('hidden');
+    
+    // Clear from localStorage
+    localStorage.removeItem('wallpaperImage');
+    
+    showToast('Wallpaper removed', 'info');
+}
+
+function updateWallpaperOpacity(event) {
+    const opacity = event.target.value;
+    document.documentElement.style.setProperty('--wallpaper-opacity', opacity / 100);
+    document.getElementById('opacityValue').textContent = `${opacity}%`;
+    localStorage.setItem('wallpaperOpacity', opacity);
+}
+
+function updateWallpaperBlur(event) {
+    const blur = event.target.value;
+    document.documentElement.style.setProperty('--wallpaper-blur', `${blur}px`);
+    document.getElementById('blurValue').textContent = `${blur}px`;
+    localStorage.setItem('wallpaperBlur', blur);
+}
+
+// Load wallpaper settings
+function loadWallpaperSettings() {
+    // Load wallpaper image
+    const savedWallpaper = localStorage.getItem('wallpaperImage');
+    if (savedWallpaper) {
+        document.documentElement.style.setProperty('--wallpaper-url', `url(${savedWallpaper})`);
+        document.body.classList.add('has-wallpaper');
+        
+        const preview = document.getElementById('wallpaperPreview');
+        const img = document.getElementById('wallpaperImg');
+        if (preview && img) {
+            img.src = savedWallpaper;
+            preview.classList.remove('hidden');
+        }
+    }
+    
+    // Load opacity
+    const savedOpacity = localStorage.getItem('wallpaperOpacity') || '20';
+    const opacitySlider = document.getElementById('wallpaperOpacity');
+    const opacityValue = document.getElementById('opacityValue');
+    if (opacitySlider && opacityValue) {
+        opacitySlider.value = savedOpacity;
+        opacityValue.textContent = `${savedOpacity}%`;
+        document.documentElement.style.setProperty('--wallpaper-opacity', savedOpacity / 100);
+    }
+    
+    // Load blur
+    const savedBlur = localStorage.getItem('wallpaperBlur') || '5';
+    const blurSlider = document.getElementById('wallpaperBlur');
+    const blurValue = document.getElementById('blurValue');
+    if (blurSlider && blurValue) {
+        blurSlider.value = savedBlur;
+        blurValue.textContent = `${savedBlur}px`;
+        document.documentElement.style.setProperty('--wallpaper-blur', `${savedBlur}px`);
+    }
+}
+
+// Load other UI settings
+function loadUISettings() {
+    // Load theme
+    const themeSelect = document.getElementById('themeSelect');
+    if (themeSelect) {
+        themeSelect.value = currentTheme;
+    }
+    
+    // Load auto download
+    const autoDownload = document.getElementById('autoDownload');
+    if (autoDownload) {
+        autoDownload.checked = localStorage.getItem('autoDownload') === 'true';
+    }
+    
+    // Load show notifications
+    const showNotifications = document.getElementById('showNotifications');
+    if (showNotifications) {
+        showNotifications.checked = localStorage.getItem('showNotifications') !== 'false';
+    }
+    
+    // Load default quality settings
+    const defaultQuality = document.getElementById('defaultQuality');
+    if (defaultQuality) {
+        defaultQuality.value = localStorage.getItem('defaultQuality') || '1080';
+    }
+    
+    const defaultAudioQuality = document.getElementById('defaultAudioQuality');
+    if (defaultAudioQuality) {
+        defaultAudioQuality.value = localStorage.getItem('defaultAudioQuality') || '256';
+    }
+    
+    const defaultType = document.getElementById('defaultType');
+    if (defaultType) {
+        defaultType.value = localStorage.getItem('defaultType') || 'video';
+    }
+}
+
+// UI settings save (for Settings Panel)
+function saveUISettings() {
+    try {
+        console.log('Saving UI settings...');
+        
+        // Save UI settings to localStorage
+        const elements = [
+            'defaultQuality', 'defaultAudioQuality', 'defaultType',
+            'autoDownload', 'showNotifications'
+        ];
+        
+        elements.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                const value = element.type === 'checkbox' ? element.checked : element.value;
+                localStorage.setItem(id, value);
+                console.log(`Saved ${id}:`, value);
+            }
+        });
+        
+        // Save wallpaper settings
+        const wallpaperOpacity = document.getElementById('wallpaperOpacity');
+        if (wallpaperOpacity) {
+            localStorage.setItem('wallpaperOpacity', wallpaperOpacity.value);
+        }
+        
+        const wallpaperBlur = document.getElementById('wallpaperBlur');
+        if (wallpaperBlur) {
+            localStorage.setItem('wallpaperBlur', wallpaperBlur.value);
+        }
+        
+        // Save theme setting
+        const themeSelect = document.getElementById('themeSelect');
+        if (themeSelect) {
+            localStorage.setItem('theme', themeSelect.value);
+        }
+        
+        // Save download path if it exists in settings panel (this is UI preference, not Electron setting)
+        const downloadPath = document.getElementById('downloadPath');
+        if (downloadPath) {
+            localStorage.setItem('downloadPath', downloadPath.value);
+            console.log('Saved downloadPath:', downloadPath.value);
+        }
+        
+        showToast('UI settings saved successfully!', 'success');
+        console.log('UI settings saved successfully');
+    } catch (error) {
+        console.error('Failed to save UI settings:', error);
+        showToast('UI settings saved locally', 'info');
+    }
+}
+
+// Enhanced settings save
+// Enhanced settings save (legacy function - now just calls saveUISettings)
+async function saveAllSettings() {
+    saveUISettings();
+}
+// Share functionality
+function shareCurrentVideo() {
+    const urlInput = document.getElementById('urlInput');
+    const videoTitle = document.getElementById('videoTitle');
+    
+    if (!urlInput.value.trim()) {
+        showToast('No video to share', 'warning');
+        return;
+    }
+
+    const shareData = {
+        title: videoTitle.textContent || 'YouTube Video',
+        url: urlInput.value.trim()
+    };
+
+    // Try native sharing first (if supported)
+    if (navigator.share) {
+        navigator.share(shareData).then(() => {
+            showToast('Video shared successfully!', 'success');
+        }).catch(() => {
+            // Fallback to clipboard
+            copyToClipboard(shareData.url);
+        });
+    } else {
+        // Fallback to clipboard
+        copyToClipboard(shareData.url);
+    }
+}
+
+function copyToClipboard(text) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Video URL copied to clipboard!', 'success');
+        }).catch(() => {
+            // Fallback for older browsers
+            fallbackCopyToClipboard(text);
+        });
+    } else {
+        fallbackCopyToClipboard(text);
+    }
+}
+
+function fallbackCopyToClipboard(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        document.execCommand('copy');
+        showToast('Video URL copied to clipboard!', 'success');
+    } catch (err) {
+        showToast('Failed to copy URL', 'error');
+    }
+    
+    document.body.removeChild(textArea);
+}
+// FAB Menu functionality
+function toggleFabMenu() {
+    const fabBtn = document.getElementById('fabBtn');
+    const fabMenu = document.getElementById('fabMenu');
+    
+    if (!fabMenu || !fabBtn) return;
+    
+    if (fabMenu.classList.contains('hidden')) {
+        // Open menu
+        fabMenu.classList.remove('hidden');
+        fabBtn.classList.add('active');
+        fabBtn.title = 'Close Quick Actions';
+    } else {
+        // Close menu
+        closeFabMenu();
+    }
+}
+
+function closeFabMenu() {
+    const fabBtn = document.getElementById('fabBtn');
+    const fabMenu = document.getElementById('fabMenu');
+    
+    if (!fabMenu || !fabBtn) return;
+    
+    fabMenu.classList.add('hidden');
+    fabBtn.classList.remove('active');
+    fabBtn.title = 'Quick Actions';
+}
+
+// Close FAB menu when clicking outside
+document.addEventListener('click', (e) => {
+    const fabContainer = document.querySelector('.fab-container');
+    const fabMenu = document.getElementById('fabMenu');
+    
+    if (fabContainer && !fabContainer.contains(e.target) && fabMenu && !fabMenu.classList.contains('hidden')) {
+        closeFabMenu();
+    }
 });

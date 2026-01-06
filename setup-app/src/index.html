@@ -3,128 +3,352 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YTStreamer007 Setup</title>
+    <title>YouTube Downloader Pro</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>YTStreamer007 Setup</h1>
-            <p>Configure and manage your YouTube downloader bot</p>
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <img src="../assets/icon.ico" alt="App Icon" width="40" height="40">
+                <h1>YouTube Downloader Pro</h1>
+            </div>
+            <div class="header-actions">
+                <div class="stats">
+                    <span id="queueCount">0 Queue</span>
+                    <span id="activeDownloads">0 Active</span>
+                    <span id="completedDownloads">0 Completed</span>
+                </div>
+                <div class="header-buttons">
+                    <button id="historyBtn" class="icon-btn" title="Download History">
+                        <img src="../assets/icons/history.svg" alt="History" width="20" height="20">
+                    </button>
+                    <button id="themeToggle" class="icon-btn" title="Toggle Theme">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="5"/>
+                            <line x1="12" y1="1" x2="12" y2="3"/>
+                            <line x1="12" y1="21" x2="12" y2="23"/>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                            <line x1="1" y1="12" x2="3" y2="12"/>
+                            <line x1="21" y1="12" x2="23" y2="12"/>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                        </svg>
+                    </button>
+                    <button id="settingsBtn" class="icon-btn" title="Settings">
+                        <img src="../assets/icons/settings.svg" alt="Settings" width="20" height="20">
+                    </button>
+                </div>
+            </div>
         </header>
 
-        <div class="tabs">
-            <button class="tab-button active" onclick="showTab('settings')">Settings</button>
-            <button class="tab-button" onclick="showTab('server')">Server Control</button>
-            <button class="tab-button" onclick="showTab('install')">Installation</button>
-        </div>
-
-        <!-- Settings Tab -->
-        <div id="settings" class="tab-content active">
-            <h2>Configuration Settings</h2>
-            
-            <div class="form-group">
-                <label for="backendPath">Backend Path:</label>
-                <div class="path-input">
-                    <input type="text" id="backendPath" placeholder="Select backend folder...">
-                    <button onclick="selectBackendPath()">Browse</button>
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Download Form -->
+            <section class="download-section">
+                <div class="input-group">
+                    <input 
+                        type="text" 
+                        id="urlInput" 
+                        placeholder="Paste YouTube URL here..."
+                        class="url-input"
+                    />
+                    <button id="searchBtn" class="btn btn-secondary">
+                        <img src="../assets/icons/search.svg" alt="Search" width="16" height="16">
+                        Search
+                    </button>
                 </div>
-            </div>
 
-            <div class="form-group">
-                <label for="serverPort">Server Port:</label>
-                <input type="number" id="serverPort" value="3000" min="1000" max="65535">
-            </div>
-
-            <div class="form-group">
-                <label for="telegramToken">Telegram Bot Token:</label>
-                <input type="password" id="telegramToken" placeholder="Enter your bot token...">
-            </div>
-
-            <div class="form-group">
-                <label for="downloadPath">Download Path:</label>
-                <div class="path-input">
-                    <input type="text" id="downloadPath" placeholder="Select download folder...">
-                    <button onclick="selectDownloadPath()">Browse</button>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label class="checkbox-label">
-                    <input type="checkbox" id="autoStart">
-                    Auto-start server on application launch
-                </label>
-            </div>
-
-            <div class="form-actions">
-                <button class="btn-primary" onclick="saveSettings()">Save Settings</button>
-                <button class="btn-secondary" onclick="loadSettings()">Reset</button>
-            </div>
-        </div>
-
-        <!-- Server Control Tab -->
-        <div id="server" class="tab-content">
-            <h2>Server Control</h2>
-            
-            <div class="server-status">
-                <div class="status-indicator">
-                    <span id="statusDot" class="status-dot stopped"></span>
-                    <span id="statusText">Server Stopped</span>
-                </div>
-            </div>
-
-            <div class="server-controls">
-                <button id="startBtn" class="btn-success" onclick="startServer()">Start Server</button>
-                <button id="stopBtn" class="btn-danger" onclick="stopServer()" disabled>Stop Server</button>
-                <button class="btn-secondary" onclick="checkStatus()">Check Status</button>
-            </div>
-
-            <div class="server-info">
-                <h3>Server Information</h3>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <label>Web Interface:</label>
-                        <span id="webUrl">http://localhost:3000</span>
-                    </div>
-                    <div class="info-item">
-                        <label>API Endpoint:</label>
-                        <span id="apiUrl">http://localhost:3000/api</span>
+                <!-- Video Info Card -->
+                <div id="videoInfo" class="video-info hidden">
+                    <img id="videoThumbnail" src="" alt="Thumbnail" class="thumbnail">
+                    <div class="video-details">
+                        <h3 id="videoTitle"></h3>
+                        <p id="videoMeta"></p>
                     </div>
                 </div>
-            </div>
 
-            <div class="logs">
-                <h3>Server Logs</h3>
-                <div id="logOutput" class="log-output"></div>
-            </div>
-        </div>
+                <!-- Download Options -->
+                <div id="downloadOptions" class="download-options hidden">
+                    <div class="option-group">
+                        <label>Type:</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="type" value="video" checked>
+                                <img src="../assets/icons/video.svg" alt="Video" width="16" height="16">
+                                <span>Video</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="type" value="audio">
+                                <img src="../assets/icons/audio.svg" alt="Audio" width="16" height="16">
+                                <span>Audio Only</span>
+                            </label>
+                        </div>
+                    </div>
 
-        <!-- Installation Tab -->
-        <div id="install" class="tab-content">
-            <h2>Installation & Dependencies</h2>
-            
-            <div class="install-section">
-                <h3>Backend Dependencies</h3>
-                <p>Install required Node.js packages for the backend server.</p>
-                <button class="btn-primary" onclick="installDependencies()">Install Dependencies</button>
-            </div>
+                    <div class="option-group" id="qualityGroup">
+                        <label id="qualityLabel">Quality:</label>
+                        <select id="qualitySelect" class="select-input">
+                            <option value="2160">4K (2160p)</option>
+                            <option value="1440">2K (1440p)</option>
+                            <option value="1080" selected>1080p</option>
+                            <option value="720">720p</option>
+                            <option value="480">480p</option>
+                            <option value="360">360p</option>
+                        </select>
+                    </div>
 
-            <div class="install-progress">
-                <h3>Installation Progress</h3>
-                <div id="installOutput" class="install-output"></div>
-            </div>
+                    <div class="button-group">
+                        <button id="addToQueueBtn" class="btn btn-secondary">
+                            <img src="../assets/icons/queue.svg" alt="Queue" width="16" height="16">
+                            Add to Queue
+                        </button>
+                        <button id="downloadBtn" class="btn btn-primary">
+                            <img src="../assets/icons/download.svg" alt="Download" width="16" height="16">
+                            Download Now
+                        </button>
+                    </div>
+                </div>
+            </section>
 
-            <div class="requirements">
-                <h3>System Requirements</h3>
-                <ul>
-                    <li>Node.js 18.0.0 or higher</li>
-                    <li>NPM package manager</li>
-                    <li>Internet connection for downloads</li>
-                    <li>Telegram Bot Token (from @BotFather)</li>
-                </ul>
+            <!-- Downloads List -->
+            <section class="downloads-section">
+                <div class="section-header">
+                    <h2>Downloads</h2>
+                    <button id="clearCompletedBtn" class="btn-text">
+                        <img src="../assets/icons/delete.svg" alt="Clear" width="14" height="14">
+                        Clear Completed
+                    </button>
+                </div>
+                <div id="downloadsList" class="downloads-list">
+                    <div class="empty-state">
+                        <img src="../assets/icons/download.svg" alt="No downloads" width="48" height="48" style="opacity: 0.3;">
+                        <p>No downloads yet</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Control Panel -->
+        <aside id="controlPanel" class="side-panel hidden">
+            <div class="panel-header">
+                <h3>
+                    <img src="../assets/icons/settings.svg" alt="Control Panel" width="20" height="20">
+                    Control Panel
+                </h3>
+                <button id="closeControlPanelBtn" class="close-btn">&times;</button>
             </div>
+            <div class="settings-content">
+                <div class="setting-group">
+                    <label>Backend Path</label>
+                    <div class="path-input">
+                        <input type="text" id="backendPath" class="text-input" placeholder="Select backend folder...">
+                        <button onclick="selectBackendPath()">Browse</button>
+                    </div>
+                    <small class="setting-hint">Path to the backend server files</small>
+                </div>
+                
+                <div class="setting-group">
+                    <label>Server Port</label>
+                    <input type="number" id="serverPort" value="3000" min="1000" max="65535" class="text-input">
+                    <small class="setting-hint">Port number for the backend server</small>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="autoStart">
+                        <span>Auto-start server on launch</span>
+                    </label>
+                </div>
+                
+                <div class="server-controls">
+                    <h4>
+                        <img src="../assets/icons/settings.svg" alt="Server" width="16" height="16">
+                        Server Control
+                    </h4>
+                    <div class="server-status">
+                        <span id="statusDot" class="status-dot stopped"></span>
+                        <span id="statusText">Server Stopped</span>
+                    </div>
+                    <div class="button-group">
+                        <button id="startBtn" class="btn btn-success" onclick="startServer()">
+                            <img src="../assets/icons/play.svg" alt="Start" width="16" height="16">
+                            Start
+                        </button>
+                        <button id="stopBtn" class="btn btn-danger" onclick="stopServer()" disabled>
+                            <img src="../assets/icons/pause.svg" alt="Stop" width="16" height="16">
+                            Stop
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="panel-footer">
+                <button id="saveControlPanelBtn" class="btn btn-primary btn-block">Save Settings</button>
+            </div>
+        </aside>
+
+        <!-- Settings Panel -->
+        <aside id="settingsPanel" class="side-panel hidden">
+            <div class="panel-header">
+                <h3>
+                    <img src="../assets/icons/settings.svg" alt="Settings" width="20" height="20">
+                    Settings
+                </h3>
+                <button id="closeSettingsBtn" class="close-btn">&times;</button>
+            </div>
+            <div class="settings-content">
+                <div class="setting-group">
+                    <label>Default Video Quality</label>
+                    <select id="defaultQuality" class="select-input">
+                        <option value="2160">4K (2160p)</option>
+                        <option value="1440">2K (1440p)</option>
+                        <option value="1080" selected>1080p</option>
+                        <option value="720">720p</option>
+                        <option value="480">480p</option>
+                        <option value="360">360p</option>
+                    </select>
+                </div>
+                
+                <div class="setting-group">
+                    <label>Default Audio Quality</label>
+                    <select id="defaultAudioQuality" class="select-input">
+                        <option value="320">320 kbps (Best)</option>
+                        <option value="256" selected>256 kbps (High)</option>
+                        <option value="192">192 kbps (Medium)</option>
+                        <option value="128">128 kbps (Standard)</option>
+                    </select>
+                </div>
+                
+                <div class="setting-group">
+                    <label>Default Type</label>
+                    <select id="defaultType" class="select-input">
+                        <option value="video" selected>Video</option>
+                        <option value="audio">Audio Only</option>
+                    </select>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="autoDownload">
+                        <span>Auto-download after search</span>
+                    </label>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="showNotifications" checked>
+                        <span>Show notifications</span>
+                    </label>
+                </div>
+                
+                <div class="setting-group">
+                    <label>Theme</label>
+                    <select id="themeSelect" class="select-input">
+                        <option value="dark" selected>Dark Mode</option>
+                        <option value="light">Light Mode</option>
+                        <option value="auto">Auto (System)</option>
+                    </select>
+                </div>
+                
+                <div class="setting-group">
+                    <label>Download Path</label>
+                    <div class="path-input">
+                        <input type="text" id="downloadPath" class="text-input" placeholder="C:\Users\YourName\Downloads">
+                        <button onclick="selectDownloadPath()">Browse</button>
+                    </div>
+                    <small class="setting-hint">Server-side download location</small>
+                </div>
+                
+                <div class="setting-group">
+                    <label>Background Wallpaper</label>
+                    <div class="wallpaper-options">
+                        <button type="button" class="btn btn-secondary btn-small" id="uploadWallpaper">
+                            <img src="../assets/icons/download.svg" alt="Upload" width="14" height="14">
+                            Upload Image
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-small" id="removeWallpaper">
+                            <img src="../assets/icons/delete.svg" alt="Remove" width="14" height="14">
+                            Remove
+                        </button>
+                    </div>
+                    <input type="file" id="wallpaperInput" accept="image/*" style="display: none;">
+                    <div id="wallpaperPreview" class="wallpaper-preview hidden">
+                        <img id="wallpaperImg" src="" alt="Wallpaper Preview">
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label>Wallpaper Opacity</label>
+                    <div class="slider-container">
+                        <input type="range" id="wallpaperOpacity" min="0" max="100" value="20" class="slider">
+                        <span id="opacityValue" class="slider-value">20%</span>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label>Wallpaper Blur</label>
+                    <div class="slider-container">
+                        <input type="range" id="wallpaperBlur" min="0" max="20" value="5" class="slider">
+                        <span id="blurValue" class="slider-value">5px</span>
+                    </div>
+                </div>
+            </div>
+            <div class="panel-footer">
+                <button id="saveSettingsBtn" class="btn btn-primary btn-block">Save Settings</button>
+            </div>
+        </aside>
+
+        <!-- History Panel -->
+        <aside id="historyPanel" class="side-panel hidden">
+            <div class="panel-header">
+                <h3>
+                    <img src="../assets/icons/history.svg" alt="History" width="20" height="20">
+                    Download History
+                </h3>
+                <button id="closeHistoryBtn" class="close-btn">&times;</button>
+            </div>
+            <div id="historyList" class="history-list">
+                <div class="empty-state-small">
+                    <p>No history yet</p>
+                </div>
+            </div>
+            <div class="panel-footer">
+                <button id="clearHistoryBtn" class="btn btn-secondary btn-block">
+                    <img src="../assets/icons/delete.svg" alt="Clear" width="16" height="16">
+                    Clear History
+                </button>
+            </div>
+        </aside>
+
+        <!-- Overlay -->
+        <div id="overlay" class="overlay hidden"></div>
+    </div>
+
+    <!-- Floating Action Button -->
+    <div class="fab-container">
+        <button id="fabBtn" class="fab" title="Quick Actions">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+        </button>
+        <div id="fabMenu" class="fab-menu hidden">
+            <button class="fab-item" id="fabControl" title="Control Panel">
+                <img src="../assets/icons/settings.svg" alt="Control" width="20" height="20">
+            </button>
+            <button class="fab-item" id="fabSchedule" title="Schedule Download">
+                <img src="../assets/icons/info.svg" alt="Schedule" width="20" height="20">
+            </button>
+            <button class="fab-item" id="fabShare" title="Share">
+                <img src="../assets/icons/share.svg" alt="Share" width="20" height="20">
+            </button>
         </div>
     </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
 
     <script src="renderer.js"></script>
 </body>

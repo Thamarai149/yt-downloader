@@ -1,0 +1,233 @@
+# YTStreamer Pro Manager
+
+A professional YouTube downloader system with Telegram bot integration and desktop management interface.
+
+## 🚀 Features
+
+- **Telegram Bot Integration**: Download YouTube videos directly through Telegram
+- **Desktop Management App**: Electron-based control panel for easy configuration
+- **Real-time Progress Tracking**: Live download progress updates via WebSocket
+- **Multiple Format Support**: Download videos in various qualities and formats
+- **Rate Limiting**: Built-in protection against API abuse
+- **Cross-platform**: Works on Windows, macOS, and Linux
+- **Cloud Deployment Ready**: Configured for Render.com deployment
+
+## 📁 Project Structure
+
+```
+├── backend/                 # Node.js backend server
+│   ├── src/                # Server source code
+│   ├── downloads/          # Downloaded files storage
+│   └── package.json        # Backend dependencies
+├── setup-app/              # Electron desktop application
+│   ├── src/                # Electron app source
+│   ├── assets/             # App icons and resources
+│   └── package.json        # Desktop app dependencies
+├── web-frontend/           # Web interface (if applicable)
+└── package.json            # Root project configuration
+```
+
+## 🛠️ Installation
+
+### Prerequisites
+
+- Node.js 18.0.0 or higher
+- npm or yarn package manager
+- Telegram Bot Token (from @BotFather)
+
+### Quick Start
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd ytstreamer-pro-manager
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   cd backend && npm install
+   cd ../setup-app && npm install
+   ```
+
+3. **Configure environment**
+   ```bash
+   cd backend
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+4. **Start the backend server**
+   ```bash
+   cd backend
+   npm start
+   ```
+
+5. **Launch the desktop app**
+   ```bash
+   cd setup-app
+   npm start
+   ```
+
+## ⚙️ Configuration
+
+### Backend Environment Variables
+
+Create a `.env` file in the `backend` directory:
+
+```env
+PORT=3000
+NODE_ENV=development
+CORS_ORIGIN=http://localhost:3000
+DOWNLOAD_PATH=/path/to/downloads
+MAX_CONCURRENT_DOWNLOADS=3
+RATE_LIMIT_WINDOW=15
+RATE_LIMIT_MAX=100
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+```
+
+### Desktop App Configuration
+
+The Electron app provides a user-friendly interface to:
+- Set backend server path
+- Configure Telegram bot token
+- Set download directory
+- Manage server startup options
+- Monitor download progress
+
+## 🤖 Telegram Bot Setup
+
+1. Create a new bot with @BotFather on Telegram
+2. Get your bot token
+3. Add the token to your `.env` file
+4. Start the backend server
+5. Your bot is ready to accept YouTube links!
+
+## 🚀 Deployment
+
+### Local Development
+
+```bash
+# Start backend in development mode
+cd backend && npm run dev
+
+# Start desktop app in development mode
+cd setup-app && npm run dev
+```
+
+### Production Deployment (Render.com)
+
+The project includes a `render.yaml` configuration for easy deployment:
+
+1. Connect your repository to Render.com
+2. Set up environment variables in Render dashboard
+3. Deploy automatically with git push
+
+### Building Desktop App
+
+```bash
+cd setup-app
+npm run build        # Build for current platform
+npm run build-win    # Build for Windows
+```
+
+## 📡 API Endpoints
+
+### Download Endpoints
+- `POST /api/download` - Start a new download
+- `GET /api/download/:id` - Get download status
+- `DELETE /api/download/:id` - Cancel download
+
+### System Endpoints
+- `GET /api/health` - Health check
+- `GET /api/status` - Server status
+
+## 🔧 Development
+
+### Backend Development
+
+```bash
+cd backend
+npm run dev          # Start with nodemon
+npm test            # Run tests
+npm run lint        # Lint code
+npm run format      # Format code
+```
+
+### Desktop App Development
+
+```bash
+cd setup-app
+npm run dev         # Start in development mode
+npm run build       # Build for production
+```
+
+## 📋 Requirements
+
+- **Node.js**: >= 18.0.0
+- **RAM**: Minimum 512MB, Recommended 1GB+
+- **Storage**: Varies based on download volume
+- **Network**: Stable internet connection for YouTube API
+
+## 🛡️ Security Features
+
+- Rate limiting to prevent abuse
+- Input validation and sanitization
+- CORS protection
+- Helmet.js security headers
+- Environment variable protection
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+1. **Port already in use**
+   ```bash
+   # Kill processes on port 3000
+   npx kill-port 3000
+   ```
+
+2. **Download failures**
+   - Check internet connection
+   - Verify YouTube URL is valid
+   - Ensure sufficient disk space
+
+3. **Telegram bot not responding**
+   - Verify bot token is correct
+   - Check backend server is running
+   - Ensure webhook is properly configured
+
+### Logs
+
+- Backend logs: Check console output or log files
+- Desktop app logs: Check Electron developer tools
+- Download progress: Monitor via WebSocket connection
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📞 Support
+
+For support and questions:
+- Check the troubleshooting section
+- Review existing issues
+- Create a new issue with detailed information
+
+## 🔄 Version History
+
+- **v3.0.0**: Modern architecture with real-time progress
+- **v2.x.x**: Enhanced Telegram integration
+- **v1.x.x**: Initial release
+
+---
+
+**Note**: This software is for educational purposes. Ensure you comply with YouTube's Terms of Service and respect content creators' rights.

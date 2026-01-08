@@ -321,4 +321,12 @@ export class DownloadService {
     }
     return false;
   }
+
+  getDownloadById(downloadId) {
+    return this.activeDownloads.get(downloadId);
+  }
+
+  getDownloadFromHistory(downloadId) {
+    return this.downloadHistory.find(download => download.id === downloadId);
+  }
 }

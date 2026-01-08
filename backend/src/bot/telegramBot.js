@@ -11,6 +11,7 @@ class TelegramBotService {
     this.urlCache = new Map(); // Cache for storing URLs with short IDs
     this.downloadService = downloadService;
     this.videoInfoService = videoInfoService;
+    this.playlistService = null;
     this.initializeCommands();
   }
 
@@ -18,6 +19,11 @@ class TelegramBotService {
   setServices(downloadService, videoInfoService) {
     this.downloadService = downloadService;
     this.videoInfoService = videoInfoService;
+  }
+
+  // Set playlist service
+  setPlaylistService(playlistService) {
+    this.playlistService = playlistService;
   }
 
   // Generate short ID for URL to avoid callback data limit
@@ -335,12 +341,264 @@ Let's get started! 🎵📹
     }
 
     const url = args[0];
-    if (!this.isYouTubeUrl(url)) {
+    if (!this.isYouTubeUrl(url) && !this.isPlaylistUrl(url)) {
       await this.sendMessage(chatId, 'Please provide a valid YouTube playlist URL.');
       return;
     }
 
-    await this.sendMessage(chatId, 'Playlist downloads are not yet implemented. Please download videos individually.');
+    if (!this.playlistService) {
+      await this.sendMessage(chatId, 'Playlist service is not available. Please try again later.');
+      return;
+    }
+
+    await this.showPlaylistOptions(chatId, url);
+  }
+
+  // Check if URL is a playlist URL
+  isPlaylistUrl(url) {
+    const playlistPatterns = [
+      /(?:youtube\.com\/playlist\?list=|youtube\.com\/watch\?.*list=)/i,
+      /youtu\.be\/.*\?.*list=/i
+    ];
+    
+    return playlistPatterns.some(pattern => pattern.test(url));
+  }
+
+  // Show playlist download options
+  async showPlaylistOptions(chatId, url) {
+    try {
+      // Get playlist info first
+      const statusMsg = await this.sendMessage(chatId, '🔄 Getting playlist information...');
+      
+      const playlistInfo = await this.playlistService.getPlaylistInfo(url);
+      
+      const urlId = this.generateUrlId(url);
+      
+      const keyboard = {
+        inline_keyboard: [
+          [
+            { text: '🎵 Audio Only (All)', callback_data: `pl_audio_best_${urlId}` }
+          ],
+          [
+            { text: '📱 360p (All)', callback_data: `pl_video_360_${urlId}` },
+            { text: '📺 480p (All)', callback_data: `pl_video_480_${urlId}` }
+          ],
+          [
+            { text: '🖥️ 720p HD (All)', callback_data: `pl_video_720_${urlId}` },
+            { text: '📽️ 1080p FHD (All)', callback_data: `pl_video_1080_${urlId}` }
+          ],
+          [
+            { text: '🎬 1440p 2K (All)', callback_data: `pl_video_1440_${urlId}` },
+            { text: '🎭 2160p 4K (All)', callback_data: `pl_video_2160_${urlId}` }
+          ],
+          [
+            { text: '⭐ Best Quality (All)', callback_data: `pl_video_best_${urlId}` }
+          ],
+          [
+            { text: '🔢 First 10 Videos', callback_data: `pl_limit_10_${urlId}` },
+            { text: '🔢 First 20 Videos', callback_data: `pl_limit_20_${urlId}` }
+          ],
+          [
+            { text: '❌ Cancel', callback_data: 'cancel_download' }
+          ]
+        ]
+      };
+
+      const playlistMessage = `
+📋 Playlist Found!
+
+🎬 **${playlistInfo.title}**
+👤 Channel: ${playlistInfo.uploader}
+📊 Videos: ${playlistInfo.videoCount}
+
+⚠️ **Important Notes:**
+• Playlist downloads may take a long time
+• Large playlists will be processed sequentially
+• You can limit to first 10/20 videos for testing
+• Use /cancel to stop playlist download
+
+Choose download format:
+      `;
+
+      await this.editMessage(chatId, statusMsg.message_id, playlistMessage, { reply_markup: keyboard });
+      
+    } catch (error) {
+      console.error('Error getting playlist info:', error);
+      await this.sendMessage(chatId, '❌ Failed to get playlist information. Please check the URL and try again.');
+    }
+  }
+
+  // Start playlist download
+  async startPlaylistDownload(chatId, url, options = {}) {
+    try {
+      const userId = chatId;
+      
+      if (!this.playlistService) {
+        await this.sendErrorMessage(chatId, 'Playlist service not available');
+        return;
+      }
+      
+      // Initialize user session
+      if (!this.userSessions.has(userId)) {
+        this.userSessions.set(userId, {});
+      }
+      
+      const session = this.userSessions.get(userId);
+      
+      // Check if already downloading
+      if (session.activeDownload || session.activePlaylist) {
+        await this.sendMessage(chatId, 'You already have an active download. Use /cancel to stop it first.');
+        return;
+      }
+
+      // Send initial message
+      const statusMsg = await this.sendMessage(chatId, '🔄 Starting playlist download...');
+      
+      // Set up playlist session
+      session.activePlaylist = {
+        url,
+        options,
+        startTime: Date.now(),
+        progress: 0,
+        status: 'starting',
+        messageId: statusMsg.message_id
+      };
+
+      // Start playlist download
+      const downloadType = options.format === 'audio' ? 'audio' : 'video';
+      const quality = options.quality || 'best';
+      
+      const playlistOptions = {
+        maxVideos: options.maxVideos || null,
+        skipExisting: false,
+        continueOnError: true
+      };
+      
+      const playlistResult = await this.playlistService.startPlaylistDownload(url, downloadType, quality, playlistOptions);
+      
+      // Store playlist ID for progress tracking
+      session.activePlaylist.playlistId = playlistResult.playlistId;
+      
+      // Set up progress monitoring
+      const progressMonitor = setInterval(() => {
+        if (this.playlistService && session.activePlaylist) {
+          const playlistInfo = this.playlistService.getActivePlaylist(session.activePlaylist.playlistId);
+          if (playlistInfo) {
+            this.updatePlaylistProgress(chatId, userId, playlistInfo);
+          } else {
+            // Playlist completed or failed, clear monitor
+            clearInterval(progressMonitor);
+            this.handlePlaylistComplete(chatId, userId);
+          }
+        }
+      }, 5000); // Update every 5 seconds
+      
+      session.activePlaylist.progressMonitor = progressMonitor;
+      
+      const initialMessage = `
+🎬 Playlist Download Started!
+
+📋 **${playlistResult.title}**
+📊 Total Videos: ${playlistResult.total}
+📺 Quality: ${this.getQualityLabel(quality)}
+🎵 Format: ${downloadType === 'audio' ? 'Audio (MP3)' : 'Video (MP4)'}
+
+⏳ Processing videos... This may take a while.
+Use /cancel to stop the download.
+      `;
+
+      await this.editMessage(chatId, statusMsg.message_id, initialMessage);
+
+    } catch (error) {
+      console.error('Playlist download error:', error);
+      await this.sendErrorMessage(chatId, 'Failed to start playlist download. Please try again.');
+      
+      // Clear session on error
+      const session = this.userSessions.get(chatId);
+      if (session) {
+        session.activePlaylist = null;
+      }
+    }
+  }
+
+  // Update playlist progress
+  async updatePlaylistProgress(chatId, userId, playlistInfo) {
+    const session = this.userSessions.get(userId);
+    if (!session || !session.activePlaylist) return;
+
+    const progress = Math.round((playlistInfo.completed + playlistInfo.failed + playlistInfo.skipped) / playlistInfo.total * 100);
+    
+    // Update message every 10% or significant status change
+    const shouldUpdate = progress !== session.activePlaylist.lastProgress || 
+                        playlistInfo.status !== session.activePlaylist.lastStatus;
+
+    if (shouldUpdate) {
+      const currentVideo = playlistInfo.currentVideo ? 
+        `\n🎬 Current: ${playlistInfo.currentVideo.title} (${playlistInfo.currentVideo.index}/${playlistInfo.total})` : '';
+      
+      const progressText = `
+🎬 Playlist Download Progress
+
+📋 **${playlistInfo.title}**
+📊 Progress: ${progress}% (${playlistInfo.completed + playlistInfo.failed + playlistInfo.skipped}/${playlistInfo.total})
+
+✅ Completed: ${playlistInfo.completed}
+❌ Failed: ${playlistInfo.failed}
+⏭️ Skipped: ${playlistInfo.skipped}
+⏳ Status: ${playlistInfo.status}${currentVideo}
+
+Please wait... This may take a while.
+Use /cancel to stop the download.
+      `;
+
+      await this.editMessage(chatId, session.activePlaylist.messageId, progressText);
+      session.activePlaylist.lastProgress = progress;
+      session.activePlaylist.lastStatus = playlistInfo.status;
+    }
+  }
+
+  // Handle playlist completion
+  async handlePlaylistComplete(chatId, userId) {
+    const session = this.userSessions.get(userId);
+    if (!session || !session.activePlaylist) return;
+
+    // Clear progress monitor
+    if (session.activePlaylist.progressMonitor) {
+      clearInterval(session.activePlaylist.progressMonitor);
+    }
+
+    // Get final playlist status from history
+    const playlistHistory = this.playlistService.getPlaylistHistory();
+    const completedPlaylist = playlistHistory.find(p => p.id === session.activePlaylist.playlistId);
+
+    if (completedPlaylist) {
+      const duration = completedPlaylist.endTime ? 
+        Math.round((new Date(completedPlaylist.endTime) - new Date(completedPlaylist.startTime)) / 1000 / 60) : 0;
+
+      const completionMessage = `
+✅ Playlist Download Complete!
+
+📋 **${completedPlaylist.title}**
+⏱️ Duration: ${duration} minutes
+📊 Results:
+  ✅ Completed: ${completedPlaylist.completed}
+  ❌ Failed: ${completedPlaylist.failed}
+  ⏭️ Skipped: ${completedPlaylist.skipped}
+  📊 Total: ${completedPlaylist.total}
+
+📁 Files saved to server download folder.
+Use /location for folder information.
+
+${completedPlaylist.failed > 0 ? '⚠️ Some videos failed to download. This is normal for private/deleted videos.' : '🎉 All videos downloaded successfully!'}
+      `;
+
+      await this.sendMessage(chatId, completionMessage);
+    } else {
+      await this.sendMessage(chatId, '✅ Playlist download completed!');
+    }
+
+    // Clear session
+    session.activePlaylist = null;
   }
 
   async handleSettings(msg, args) {
@@ -456,13 +714,15 @@ Let's get started! 🎵📹
     
     const session = this.userSessions.get(userId);
     
-    if (!session || !session.activeDownload) {
-      await this.sendMessage(chatId, '✅ No active downloads.');
+    if (!session || (!session.activeDownload && !session.activePlaylist)) {
+      await this.sendMessage(chatId, '✅ No active downloads or playlists.');
       return;
     }
 
-    const startTime = new Date(session.activeDownload.startTime);
-    const status = `
+    // Show regular download status
+    if (session.activeDownload) {
+      const startTime = new Date(session.activeDownload.startTime);
+      const status = `
 📊 Download Status:
 
 🎬 Video: ${session.activeDownload.title || 'Loading...'}
@@ -470,9 +730,33 @@ Let's get started! 🎵📹
 ⏱️ Status: ${session.activeDownload.status || 'Processing...'}
 🕒 Started: ${this.formatDateTime(startTime)}
 📺 Quality: ${this.getQualityLabel(session.activeDownload.options?.quality)}
-    `;
+      `;
+      await this.sendMessage(chatId, status);
+    }
 
-    await this.sendMessage(chatId, status);
+    // Show playlist status
+    if (session.activePlaylist) {
+      const startTime = new Date(session.activePlaylist.startTime);
+      let playlistInfo = null;
+      
+      if (this.playlistService && session.activePlaylist.playlistId) {
+        playlistInfo = this.playlistService.getActivePlaylist(session.activePlaylist.playlistId);
+      }
+      
+      const status = `
+📊 Playlist Status:
+
+📋 Playlist: ${playlistInfo?.title || 'Loading...'}
+📈 Progress: ${playlistInfo ? Math.round((playlistInfo.completed + playlistInfo.failed + playlistInfo.skipped) / playlistInfo.total * 100) : 0}%
+✅ Completed: ${playlistInfo?.completed || 0}
+❌ Failed: ${playlistInfo?.failed || 0}
+⏭️ Skipped: ${playlistInfo?.skipped || 0}
+📊 Total: ${playlistInfo?.total || 'Unknown'}
+⏱️ Status: ${playlistInfo?.status || 'Processing...'}
+🕒 Started: ${this.formatDateTime(startTime)}
+      `;
+      await this.sendMessage(chatId, status);
+    }
   }
 
   async handleCancel(msg, args) {
@@ -481,20 +765,33 @@ Let's get started! 🎵📹
     
     const session = this.userSessions.get(userId);
     
-    if (!session || !session.activeDownload) {
-      await this.sendMessage(chatId, 'No active download to cancel.');
+    if (!session || (!session.activeDownload && !session.activePlaylist)) {
+      await this.sendMessage(chatId, 'No active download or playlist to cancel.');
       return;
     }
 
-    // Cancel the download
-    if (session.activeDownload.cancelToken) {
-      session.activeDownload.cancelToken();
+    // Cancel regular download
+    if (session.activeDownload) {
+      if (session.activeDownload.cancelToken) {
+        session.activeDownload.cancelToken();
+      }
+      session.activeDownload = null;
+      await this.sendMessage(chatId, '❌ Download cancelled.');
     }
 
-    // Clear session
-    session.activeDownload = null;
-    
-    await this.sendMessage(chatId, '❌ Download cancelled.');
+    // Cancel playlist download
+    if (session.activePlaylist) {
+      if (session.activePlaylist.progressMonitor) {
+        clearInterval(session.activePlaylist.progressMonitor);
+      }
+      
+      if (this.playlistService && session.activePlaylist.playlistId) {
+        this.playlistService.cancelPlaylistDownload(session.activePlaylist.playlistId);
+      }
+      
+      session.activePlaylist = null;
+      await this.sendMessage(chatId, '❌ Playlist download cancelled.');
+    }
   }
 
   // Utility Methods
@@ -991,6 +1288,8 @@ This file (${fileSize}) is too large to send via Telegram (50MB limit).
         await this.handleDownloadCallback(chatId, data);
       } else if (data.startsWith('qk_')) {
         await this.handleQuickCallback(chatId, data);
+      } else if (data.startsWith('pl_')) {
+        await this.handlePlaylistCallback(chatId, data);
       } else if (data.startsWith('show_video_options_')) {
         await this.handleShowVideoOptions(chatId, data);
       } else {
@@ -1058,6 +1357,98 @@ This file (${fileSize}) is too large to send via Telegram (50MB limit).
     };
 
     await this.startDownload(chatId, url, options);
+  }
+
+  async handlePlaylistCallback(chatId, data) {
+    const parts = data.split('_');
+    const action = parts[0]; // 'pl'
+    
+    if (parts[1] === 'limit') {
+      // Handle limited playlist downloads (pl_limit_10_urlId)
+      const limit = parseInt(parts[2]);
+      const urlId = parts[3];
+      
+      const url = this.getUrlFromId(urlId);
+      if (!url) {
+        await this.sendMessage(chatId, '❌ Download link expired. Please send the URL again.');
+        return;
+      }
+      
+      // Show quality options for limited download
+      await this.showLimitedPlaylistOptions(chatId, url, limit);
+    } else if (parts[1] === 'limited') {
+      // Handle limited playlist with quality (pl_limited_video_720_10_urlId)
+      const format = parts[2]; // 'audio' or 'video'
+      const quality = parts[3]; // resolution
+      const limit = parseInt(parts[4]); // number of videos
+      const urlId = parts[5]; // short URL ID
+      
+      const url = this.getUrlFromId(urlId);
+      if (!url) {
+        await this.sendMessage(chatId, '❌ Download link expired. Please send the URL again.');
+        return;
+      }
+      
+      const options = {
+        format: format === 'audio' ? 'audio' : 'video',
+        originalQuality: quality,
+        quality: this.mapQualityToYoutubeDl(quality),
+        maxVideos: limit
+      };
+
+      await this.startPlaylistDownload(chatId, url, options);
+    } else {
+      // Handle regular playlist downloads (pl_audio_best_urlId or pl_video_720_urlId)
+      const format = parts[1]; // 'audio' or 'video'
+      const quality = parts[2]; // resolution or 'best'/'worst'
+      const urlId = parts[3]; // short URL ID
+      
+      const url = this.getUrlFromId(urlId);
+      if (!url) {
+        await this.sendMessage(chatId, '❌ Download link expired. Please send the URL again.');
+        return;
+      }
+      
+      const options = {
+        format: format === 'audio' ? 'audio' : 'video',
+        originalQuality: quality,
+        quality: this.mapQualityToYoutubeDl(quality)
+      };
+
+      await this.startPlaylistDownload(chatId, url, options);
+    }
+  }
+
+  // Show limited playlist options
+  async showLimitedPlaylistOptions(chatId, url, limit) {
+    const urlId = this.generateUrlId(url);
+    
+    const keyboard = {
+      inline_keyboard: [
+        [
+          { text: '🎵 Audio Only', callback_data: `pl_limited_audio_best_${limit}_${urlId}` }
+        ],
+        [
+          { text: '📱 360p', callback_data: `pl_limited_video_360_${limit}_${urlId}` },
+          { text: '📺 480p', callback_data: `pl_limited_video_480_${limit}_${urlId}` }
+        ],
+        [
+          { text: '🖥️ 720p HD', callback_data: `pl_limited_video_720_${limit}_${urlId}` },
+          { text: '📽️ 1080p FHD', callback_data: `pl_limited_video_1080_${limit}_${urlId}` }
+        ],
+        [
+          { text: '⭐ Best Quality', callback_data: `pl_limited_video_best_${limit}_${urlId}` }
+        ],
+        [
+          { text: '❌ Cancel', callback_data: 'cancel_download' }
+        ]
+      ]
+    };
+
+    await this.sendMessage(chatId, 
+      `🔢 Download first ${limit} videos\n\nChoose quality:`, 
+      { reply_markup: keyboard }
+    );
   }
 
   // Map resolution to youtube-dl format

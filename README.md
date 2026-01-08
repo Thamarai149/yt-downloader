@@ -5,9 +5,11 @@ A professional YouTube downloader system with Telegram bot integration and deskt
 ## 🚀 Features
 
 - **Telegram Bot Integration**: Download YouTube videos directly through Telegram
+- **Playlist Support**: Download entire YouTube playlists with progress tracking
 - **Desktop Management App**: Electron-based control panel for easy configuration
 - **Real-time Progress Tracking**: Live download progress updates via WebSocket
 - **Multiple Format Support**: Download videos in various qualities and formats
+- **Batch Operations**: Download multiple videos or entire playlists
 - **Rate Limiting**: Built-in protection against API abuse
 - **Cross-platform**: Works on Windows, macOS, and Linux
 - **Cloud Deployment Ready**: Configured for Render.com deployment
@@ -103,6 +105,35 @@ The Electron app provides a user-friendly interface to:
 4. Start the backend server
 5. Your bot is ready to accept YouTube links!
 
+### Bot Commands
+
+**Single Video Downloads:**
+- `/download [URL]` - Show resolution options
+- `/audio [URL]` - Download audio only (MP3)
+- `/video [URL]` - Download video (best quality)
+
+**Playlist Downloads:**
+- `/playlist [URL]` - Download entire playlist
+- Supports quality selection (360p to 4K)
+- Option to limit downloads (first 10/20 videos)
+- Real-time progress tracking
+- Continues on errors (skips private/deleted videos)
+
+**Utility Commands:**
+- `/status` - Check active downloads/playlists
+- `/cancel` - Cancel current operation
+- `/location` - Show download folder path
+- `/help` - Show all commands
+
+### Playlist Features
+
+- **Smart Processing**: Downloads videos sequentially to avoid overwhelming the system
+- **Progress Tracking**: Real-time updates showing completed/failed/total videos
+- **Error Handling**: Continues downloading even if some videos fail
+- **Flexible Limits**: Download entire playlist or limit to first N videos
+- **Quality Options**: Same quality options as single videos (360p to 4K)
+- **Format Support**: Both video (MP4) and audio-only (MP3) downloads
+
 ## 🚀 Deployment
 
 ### Local Development
@@ -137,6 +168,14 @@ npm run build-win    # Build for Windows
 - `POST /api/download` - Start a new download
 - `GET /api/download/:id` - Get download status
 - `DELETE /api/download/:id` - Cancel download
+
+### Playlist Endpoints
+- `GET /api/playlist/info?url=` - Get playlist information
+- `POST /api/playlist` - Start playlist download
+- `GET /api/playlist/active` - Get active playlists
+- `GET /api/playlist/history` - Get playlist history
+- `GET /api/playlist/:id` - Get specific playlist status
+- `DELETE /api/playlist/:id` - Cancel playlist download
 
 ### System Endpoints
 - `GET /api/health` - Health check

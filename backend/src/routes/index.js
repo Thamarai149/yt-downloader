@@ -3,6 +3,7 @@ import downloadRoutes from './downloadRoutes.js';
 import videoRoutes from './videoRoutes.js';
 import fileRoutes from './fileRoutes.js';
 import batchRoutes from './batchRoutes.js';
+import playlistRoutes from './playlistRoutes.js';
 
 const router = Router();
 
@@ -26,11 +27,12 @@ router.get('/', (req, res) => {
       download: '/api/download',
       video: '/api/video',
       files: '/api/files',
-      batch: '/api/batch'
+      batch: '/api/batch',
+      playlist: '/api/playlist'
     },
     telegram: {
       bot: 'Active',
-      features: ['Video Download', 'Audio Download', 'Subtitles', 'File Splitting']
+      features: ['Video Download', 'Audio Download', 'Playlist Download', 'Subtitles', 'File Splitting']
     }
   });
 });
@@ -40,5 +42,6 @@ router.use('/download', downloadRoutes);
 router.use('/video', videoRoutes);
 router.use('/files', fileRoutes);
 router.use('/batch', batchRoutes);
+router.use('/playlist', playlistRoutes);
 
 export default router;

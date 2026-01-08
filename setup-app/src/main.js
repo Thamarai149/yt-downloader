@@ -90,6 +90,67 @@ ipcMain.handle('get-settings', () => {
   };
 });
 
+ipcMain.handle('check-for-updates', async () => {
+  try {
+    const serverPort = store.get('serverPort', 3000);
+    const response = await fetch(`http://localhost:${serverPort}/api/updates/check`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return data.data;
+  } catch (error) {
+    console.error('Error checking for updates:', error);
+    return {
+      hasUpdate: false,
+      error: error.message,
+      currentVersion: 'Unknown'
+    };
+  }
+});
+
+ipcMain.handle('get-version-info', async () => {
+  try {
+    const serverPort = store.get('serverPort', 3000);
+    const response = await fetch(`http://localhost:${serverPort}/api/updates/version`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return data.data;
+  } catch (error) {
+    console.error('Error getting version info:', error);
+    return {
+      currentVersion: 'Unknown',
+      error: error.message
+    };
+  }
+});
+
+ipcMain.handle('get-changelog', async (event, version) => {
+  try {
+    const serverPort = store.get('serverPort', 3000);
+    const response = await fetch(`http://localhost:${serverPort}/api/updates/changelog/${version}`);
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return data.data;
+  } catch (error) {
+    console.error('Error getting changelog:', error);
+    return null;
+  }
+});
+
 ipcMain.handle('save-settings', (event, settings) => {
   try {
     console.log('Saving settings in main process:', settings);

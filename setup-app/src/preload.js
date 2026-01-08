@@ -9,6 +9,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getBackendStatus: () => ipcRenderer.invoke('get-backend-status'),
   installDependencies: () => ipcRenderer.invoke('install-dependencies'),
   
+  // Update checking
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  getVersionInfo: () => ipcRenderer.invoke('get-version-info'),
+  getChangelog: (version) => ipcRenderer.invoke('get-changelog', version),
+  
   // Download progress handling
   setupDownloadListener: () => ipcRenderer.invoke('setup-download-listener'),
   onDownloadProgress: (callback) => {

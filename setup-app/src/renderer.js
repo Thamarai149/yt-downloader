@@ -1463,3 +1463,332 @@ document.addEventListener('click', (e) => {
         closeFabMenu();
     }
 });
+// Tab functionality
+function initializeTabs() {
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const targetTab = button.getAttribute('data-tab');
+            
+            // Remove active class from all tabs and contents
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+            
+            // Add active class to clicked tab and corresponding content
+            button.classList.add('active');
+            document.getElementById(targetTab + 'Tab').classList.add('active');
+            
+            // If switching to updates tab, load version info
+            if (targetTab === 'updates') {
+                loadVersionInfo();
+            }
+        });
+    });
+}
+
+// Update functionality
+async function loadVersionInfo() {
+    try {
+        const versionInfo = await window.electronAPI.getVersionInfo();
+        
+        const currentVersionEl = document.getElementById('currentVersion');
+        const lastCheckedEl = document.getElementById('lastChecked');
+        
+        if (currentVersionEl) {
+            currentVersionEl.textContent = versionInfo.currentVersion || 'Unknown';
+        }
+        
+        if (lastCheckedEl && versionInfo.lastUpdateCheck) {
+            const lastChecked = new Date(versionInfo.lastUpdateCheck);
+            lastCheckedEl.textContent = `Last checked: ${lastChecked.toLocaleString()}`;
+        }
+    } catch (error) {
+        console.error('Error loading version info:', error);
+        showToast('Failed to load version information', 'error');
+    }
+}
+
+async function checkForUpdates() {
+    const checkBtn = document.getElementById('checkUpdatesBtn');
+    const updateStatus = document.getElementById('updateStatus');
+    const updateDetails = document.getElementById('updateDetails');
+    const changelogSection = document.getElementById('changelogSection');
+    
+    if (!checkBtn || !updateStatus) return;
+    
+    // Show loading state
+    checkBtn.disabled = true;
+    checkBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 4v6h6"/>
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+        </svg>
+        Checking...
+    `;
+    
+    updateStatus.innerHTML = `
+        <div class="update-loading">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 4v6h6"/>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+            </svg>
+            Checking for updates...
+        </div>
+    `;
+    updateStatus.classList.remove('hidden');
+    
+    try {
+        const updateInfo = await window.electronAPI.checkForUpdates();
+        
+        // Update last checked time
+        const lastCheckedEl = document.getElementById('lastChecked');
+        if (lastCheckedEl) {
+            lastCheckedEl.textContent = `Last checked: ${new Date().toLocaleString()}`;
+        }
+        
+        if (updateInfo.error) {
+            showUpdateError(updateInfo.error);
+        } else if (updateInfo.hasUpdate) {
+            showUpdateAvailable(updateInfo);
+            await showUpdateDetails(updateInfo);
+            await showChangelog(updateInfo.latestVersion);
+        } else {
+            showNoUpdates(updateInfo);
+        }
+        
+    } catch (error) {
+        console.error('Error checking for updates:', error);
+        showUpdateError(error.message);
+    } finally {
+        // Reset button
+        checkBtn.disabled = false;
+        checkBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 4v6h6"/>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+            </svg>
+            Check Now
+        `;
+    }
+}
+
+function showUpdateAvailable(updateInfo) {
+    const updateStatus = document.getElementById('updateStatus');
+    const isSecurityUpdate = updateInfo.isSecurityUpdate;
+    
+    updateStatus.innerHTML = `
+        <div class="update-available ${isSecurityUpdate ? 'update-security' : ''}">
+            <h3>
+                ${isSecurityUpdate ? '🛡️ Security Update Available' : '🎉 Update Available'}
+            </h3>
+            <p>
+                Version ${updateInfo.latestVersion} is now available. 
+                ${isSecurityUpdate ? 'This update includes important security fixes.' : 'This update includes new features and improvements.'}
+            </p>
+            <div class="update-actions">
+                <button class="btn" onclick="openDownloadPage('${updateInfo.downloadUrl}')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7,10 12,15 17,10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Download Update
+                </button>
+                <button class="btn" onclick="showChangelog('${updateInfo.latestVersion}')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14,2 14,8 20,8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10,9 9,9 8,9"/>
+                    </svg>
+                    View Changes
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function showNoUpdates(updateInfo) {
+    const updateStatus = document.getElementById('updateStatus');
+    
+    updateStatus.innerHTML = `
+        <div class="no-updates">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22,4 12,14.01 9,11.01"/>
+            </svg>
+            <h3>You're up to date!</h3>
+            <p>You are running the latest version (${updateInfo.currentVersion})</p>
+        </div>
+    `;
+}
+
+function showUpdateError(error) {
+    const updateStatus = document.getElementById('updateStatus');
+    
+    updateStatus.innerHTML = `
+        <div class="update-error">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+            <h3>Update Check Failed</h3>
+            <p>${error}</p>
+            <button class="btn btn-secondary" onclick="checkForUpdates()" style="margin-top: 12px;">
+                Try Again
+            </button>
+        </div>
+    `;
+}
+
+async function showUpdateDetails(updateInfo) {
+    const updateDetails = document.getElementById('updateDetails');
+    
+    if (!updateDetails) return;
+    
+    const releaseDate = updateInfo.releaseDate ? 
+        new Date(updateInfo.releaseDate).toLocaleDateString() : 'Unknown';
+    
+    updateDetails.innerHTML = `
+        <h3>Update Details</h3>
+        <div class="update-info">
+            <div class="info-item">
+                <span class="info-label">Current Version:</span>
+                <span class="info-value">${updateInfo.currentVersion}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Latest Version:</span>
+                <span class="info-value">${updateInfo.latestVersion}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Release Date:</span>
+                <span class="info-value">${releaseDate}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Download Size:</span>
+                <span class="info-value">${updateInfo.size || 'Unknown'}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Update Type:</span>
+                <span class="info-value">${updateInfo.isSecurityUpdate ? 'Security Update' : 'Feature Update'}</span>
+            </div>
+        </div>
+    `;
+    
+    updateDetails.classList.remove('hidden');
+}
+
+async function showChangelog(version) {
+    const changelogSection = document.getElementById('changelogSection');
+    const changelogContent = document.getElementById('changelogContent');
+    
+    if (!changelogSection || !changelogContent) return;
+    
+    try {
+        const changelog = await window.electronAPI.getChangelog(version);
+        
+        if (changelog) {
+            changelogContent.innerHTML = `
+                <div class="changelog-version">
+                    <div class="changelog-header">
+                        <span class="changelog-version-number">v${changelog.version}</span>
+                        <span class="changelog-date">${changelog.releaseDate}</span>
+                    </div>
+                    
+                    ${changelog.features && changelog.features.length > 0 ? `
+                        <div class="changelog-category">
+                            <h4>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <polyline points="16,12 12,8 8,12"/>
+                                    <line x1="12" y1="16" x2="12" y2="8"/>
+                                </svg>
+                                New Features
+                            </h4>
+                            <ul>
+                                ${changelog.features.map(feature => `<li>${feature}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                    
+                    ${changelog.improvements && changelog.improvements.length > 0 ? `
+                        <div class="changelog-category">
+                            <h4>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                                </svg>
+                                Improvements
+                            </h4>
+                            <ul>
+                                ${changelog.improvements.map(improvement => `<li>${improvement}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                    
+                    ${changelog.bugFixes && changelog.bugFixes.length > 0 ? `
+                        <div class="changelog-category">
+                            <h4>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="m8 2 1.88 1.88"/>
+                                    <path d="M14.12 3.88 16 2"/>
+                                    <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/>
+                                    <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/>
+                                    <path d="M12 20v-9"/>
+                                    <path d="M6.53 9C4.6 8.8 3 7.1 3 5"/>
+                                    <path d="M6 13H2"/>
+                                    <path d="M3 21c0-2.1 1.7-3.9 3.8-4"/>
+                                    <path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/>
+                                    <path d="M22 13h-4"/>
+                                    <path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/>
+                                </svg>
+                                Bug Fixes
+                            </h4>
+                            <ul>
+                                ${changelog.bugFixes.map(fix => `<li>${fix}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        } else {
+            changelogContent.innerHTML = `
+                <div class="no-updates">
+                    <p>No changelog available for this version.</p>
+                </div>
+            `;
+        }
+        
+        changelogSection.classList.remove('hidden');
+    } catch (error) {
+        console.error('Error loading changelog:', error);
+        changelogContent.innerHTML = `
+            <div class="update-error">
+                <p>Failed to load changelog: ${error.message}</p>
+            </div>
+        `;
+        changelogSection.classList.remove('hidden');
+    }
+}
+
+function openDownloadPage(url) {
+    // Open the download URL in the default browser
+    require('electron').shell.openExternal(url);
+}
+
+// Initialize tabs when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    initializeTabs();
+    
+    // Add event listener for check updates button
+    const checkUpdatesBtn = document.getElementById('checkUpdatesBtn');
+    if (checkUpdatesBtn) {
+        checkUpdatesBtn.addEventListener('click', checkForUpdates);
+    }
+    
+    // Load version info on startup
+    loadVersionInfo();
+});

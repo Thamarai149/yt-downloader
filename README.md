@@ -7,6 +7,7 @@ A professional YouTube downloader system with Telegram bot integration and deskt
 - **Telegram Bot Integration**: Download YouTube videos directly through Telegram
 - **Playlist Support**: Download entire YouTube playlists with progress tracking
 - **Desktop Management App**: Electron-based control panel for easy configuration
+- **Auto-Update System**: Built-in update checker with changelog display
 - **Real-time Progress Tracking**: Live download progress updates via WebSocket
 - **Multiple Format Support**: Download videos in various qualities and formats
 - **Batch Operations**: Download multiple videos or entire playlists
@@ -96,6 +97,8 @@ The Electron app provides a user-friendly interface to:
 - Set download directory
 - Manage server startup options
 - Monitor download progress
+- **Check for updates with detailed changelogs**
+- **View version history and release notes**
 
 ## 🤖 Telegram Bot Setup
 
@@ -133,6 +136,42 @@ The Electron app provides a user-friendly interface to:
 - **Flexible Limits**: Download entire playlist or limit to first N videos
 - **Quality Options**: Same quality options as single videos (360p to 4K)
 - **Format Support**: Both video (MP4) and audio-only (MP3) downloads
+
+## 🔄 Update System
+
+The application includes a built-in update checker that helps keep your software current:
+
+### Features
+- **Automatic Update Detection**: Checks for new versions from your configured source
+- **Detailed Changelogs**: View what's new in each version with categorized changes
+- **Security Updates**: Special highlighting for security-critical updates
+- **Version History**: Browse previous versions and their release notes
+- **One-Click Downloads**: Direct links to download new versions
+
+### Update Categories
+- **🎉 Feature Updates**: New functionality and enhancements
+- **🛡️ Security Updates**: Critical security patches (highlighted in orange)
+- **🐛 Bug Fixes**: Resolved issues and stability improvements
+- **⚡ Performance**: Speed and efficiency improvements
+
+### Desktop App Integration
+- **Updates Tab**: Dedicated interface for checking and viewing updates
+- **Version Display**: Current version shown in the interface
+- **Last Check Time**: Timestamp of the most recent update check
+- **Manual Check**: Force check for updates with a single click
+
+### API Integration
+The update system provides REST endpoints for programmatic access:
+```bash
+# Check for updates
+GET /api/updates/check
+
+# Get current version
+GET /api/updates/version
+
+# Get changelog for specific version
+GET /api/updates/changelog/3.1.0
+```
 
 ## 🚀 Deployment
 
@@ -176,6 +215,12 @@ npm run build-win    # Build for Windows
 - `GET /api/playlist/history` - Get playlist history
 - `GET /api/playlist/:id` - Get specific playlist status
 - `DELETE /api/playlist/:id` - Cancel playlist download
+
+### Update Endpoints
+- `GET /api/updates/check` - Check for available updates
+- `GET /api/updates/version` - Get current version info
+- `GET /api/updates/summary` - Get update summary
+- `GET /api/updates/changelog/:version` - Get changelog for specific version
 
 ### System Endpoints
 - `GET /api/health` - Health check

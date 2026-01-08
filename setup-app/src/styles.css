@@ -1907,3 +1907,358 @@ body.has-wallpaper::before {
         height: 48px;
     }
 }
+
+/* Tab Navigation */
+.tab-nav {
+    display: flex;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 4px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+}
+
+.tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    background: var(--primary);
+    color: white;
+}
+
+.tab-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Tab Content */
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Updates Section */
+.updates-section {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid var(--border);
+}
+
+.version-info {
+    margin-bottom: 24px;
+}
+
+.version-card {
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid var(--border);
+}
+
+.version-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.version-header h3 {
+    color: var(--text-primary);
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.version-badge {
+    background: var(--secondary);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.version-meta {
+    margin-top: 12px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+/* Update Status */
+.update-status {
+    margin-bottom: 24px;
+}
+
+.update-available {
+    background: linear-gradient(135deg, var(--success), #059669);
+    color: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.update-available h3 {
+    margin-bottom: 8px;
+    font-size: 18px;
+}
+
+.update-available p {
+    opacity: 0.9;
+    margin-bottom: 16px;
+}
+
+.update-security {
+    background: linear-gradient(135deg, var(--warning), #D97706);
+}
+
+.update-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.update-actions .btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+}
+
+.update-actions .btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.no-updates {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.no-updates svg {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+/* Update Details */
+.update-details {
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    margin-bottom: 24px;
+}
+
+.update-details h3 {
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    font-size: 16px;
+}
+
+.update-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.info-value {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+/* Changelog */
+.changelog-section {
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid var(--border);
+}
+
+.changelog-section h3 {
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    font-size: 16px;
+}
+
+.changelog-content {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.changelog-version {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.changelog-version:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.changelog-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.changelog-version-number {
+    background: var(--primary);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.changelog-date {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.changelog-category {
+    margin-bottom: 12px;
+}
+
+.changelog-category h4 {
+    color: var(--text-primary);
+    font-size: 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.changelog-category ul {
+    list-style: none;
+    padding-left: 20px;
+}
+
+.changelog-category li {
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-bottom: 4px;
+    position: relative;
+}
+
+.changelog-category li:before {
+    content: '•';
+    color: var(--primary);
+    position: absolute;
+    left: -12px;
+}
+
+/* Update Loading */
+.update-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: var(--text-secondary);
+}
+
+.update-loading svg {
+    animation: spin 1s linear infinite;
+    margin-right: 8px;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Update Error */
+.update-error {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--error);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+}
+
+.update-error svg {
+    width: 48px;
+    height: 48px;
+    color: var(--error);
+    margin-bottom: 12px;
+}
+
+.update-error h3 {
+    color: var(--error);
+    margin-bottom: 8px;
+}
+
+.update-error p {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* Responsive Updates */
+@media (max-width: 768px) {
+    .tab-nav {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .tab-btn {
+        justify-content: flex-start;
+    }
+    
+    .update-info {
+        grid-template-columns: 1fr;
+    }
+    
+    .update-actions {
+        flex-direction: column;
+    }
+    
+    .version-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}

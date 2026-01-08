@@ -46,89 +46,159 @@
 
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Download Form -->
-            <section class="download-section">
-                <div class="input-group">
-                    <input 
-                        type="text" 
-                        id="urlInput" 
-                        placeholder="Paste YouTube URL here..."
-                        class="url-input"
-                    />
-                    <button id="searchBtn" class="btn btn-secondary">
-                        <img src="../assets/icons/search.svg" alt="Search" width="16" height="16">
-                        Search
-                    </button>
-                </div>
+            <!-- Tab Navigation -->
+            <nav class="tab-nav">
+                <button class="tab-btn active" data-tab="download">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7,10 12,15 17,10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Downloads
+                </button>
+                <button class="tab-btn" data-tab="updates">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 4v6h6"/>
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                    </svg>
+                    Updates
+                </button>
+            </nav>
 
-                <!-- Video Info Card -->
-                <div id="videoInfo" class="video-info hidden">
-                    <img id="videoThumbnail" src="" alt="Thumbnail" class="thumbnail">
-                    <div class="video-details">
-                        <h3 id="videoTitle"></h3>
-                        <p id="videoMeta"></p>
+            <!-- Download Tab -->
+            <div id="downloadTab" class="tab-content active">
+                <!-- Download Form -->
+                <section class="download-section">
+                    <div class="input-group">
+                        <input 
+                            type="text" 
+                            id="urlInput" 
+                            placeholder="Paste YouTube URL here..."
+                            class="url-input"
+                        />
+                        <button id="searchBtn" class="btn btn-secondary">
+                            <img src="../assets/icons/search.svg" alt="Search" width="16" height="16">
+                            Search
+                        </button>
                     </div>
-                </div>
 
-                <!-- Download Options -->
-                <div id="downloadOptions" class="download-options hidden">
-                    <div class="option-group">
-                        <label>Type:</label>
-                        <div class="radio-group">
-                            <label class="radio-label">
-                                <input type="radio" name="type" value="video" checked>
-                                <img src="../assets/icons/video.svg" alt="Video" width="16" height="16">
-                                <span>Video</span>
-                            </label>
-                            <label class="radio-label">
-                                <input type="radio" name="type" value="audio">
-                                <img src="../assets/icons/audio.svg" alt="Audio" width="16" height="16">
-                                <span>Audio Only</span>
-                            </label>
+                    <!-- Video Info Card -->
+                    <div id="videoInfo" class="video-info hidden">
+                        <img id="videoThumbnail" src="" alt="Thumbnail" class="thumbnail">
+                        <div class="video-details">
+                            <h3 id="videoTitle"></h3>
+                            <p id="videoMeta"></p>
                         </div>
                     </div>
 
-                    <div class="option-group" id="qualityGroup">
-                        <label id="qualityLabel">Quality:</label>
-                        <select id="qualitySelect" class="select-input">
-                            <option value="2160">4K (2160p)</option>
-                            <option value="1440">2K (1440p)</option>
-                            <option value="1080" selected>1080p</option>
-                            <option value="720">720p</option>
-                            <option value="480">480p</option>
-                            <option value="360">360p</option>
-                        </select>
+                    <!-- Download Options -->
+                    <div id="downloadOptions" class="download-options hidden">
+                        <div class="option-group">
+                            <label>Type:</label>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="type" value="video" checked>
+                                    <img src="../assets/icons/video.svg" alt="Video" width="16" height="16">
+                                    <span>Video</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="type" value="audio">
+                                    <img src="../assets/icons/audio.svg" alt="Audio" width="16" height="16">
+                                    <span>Audio Only</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="option-group" id="qualityGroup">
+                            <label id="qualityLabel">Quality:</label>
+                            <select id="qualitySelect" class="select-input">
+                                <option value="2160">4K (2160p)</option>
+                                <option value="1440">2K (1440p)</option>
+                                <option value="1080" selected>1080p</option>
+                                <option value="720">720p</option>
+                                <option value="480">480p</option>
+                                <option value="360">360p</option>
+                            </select>
+                        </div>
+
+                        <div class="button-group">
+                            <button id="addToQueueBtn" class="btn btn-secondary">
+                                <img src="../assets/icons/queue.svg" alt="Queue" width="16" height="16">
+                                Add to Queue
+                            </button>
+                            <button id="downloadBtn" class="btn btn-primary">
+                                <img src="../assets/icons/download.svg" alt="Download" width="16" height="16">
+                                Download Now
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Downloads List -->
+                <section class="downloads-section">
+                    <div class="section-header">
+                        <h2>Downloads</h2>
+                        <button id="clearCompletedBtn" class="btn-text">
+                            <img src="../assets/icons/delete.svg" alt="Clear" width="14" height="14">
+                            Clear Completed
+                        </button>
+                    </div>
+                    <div id="downloadsList" class="downloads-list">
+                        <div class="empty-state">
+                            <img src="../assets/icons/download.svg" alt="No downloads" width="48" height="48" style="opacity: 0.3;">
+                            <p>No downloads yet</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Updates Tab -->
+            <div id="updatesTab" class="tab-content">
+                <section class="updates-section">
+                    <div class="section-header">
+                        <h2>Check for Updates</h2>
+                        <button id="checkUpdatesBtn" class="btn btn-primary">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 4v6h6"/>
+                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                            </svg>
+                            Check Now
+                        </button>
                     </div>
 
-                    <div class="button-group">
-                        <button id="addToQueueBtn" class="btn btn-secondary">
-                            <img src="../assets/icons/queue.svg" alt="Queue" width="16" height="16">
-                            Add to Queue
-                        </button>
-                        <button id="downloadBtn" class="btn btn-primary">
-                            <img src="../assets/icons/download.svg" alt="Download" width="16" height="16">
-                            Download Now
-                        </button>
+                    <!-- Current Version Info -->
+                    <div class="version-info">
+                        <div class="version-card">
+                            <div class="version-header">
+                                <h3>Current Version</h3>
+                                <span id="currentVersion" class="version-badge">Loading...</span>
+                            </div>
+                            <p id="versionDescription">YTStreamer Pro Manager</p>
+                            <div class="version-meta">
+                                <span id="lastChecked">Last checked: Never</span>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </section>
 
-            <!-- Downloads List -->
-            <section class="downloads-section">
-                <div class="section-header">
-                    <h2>Downloads</h2>
-                    <button id="clearCompletedBtn" class="btn-text">
-                        <img src="../assets/icons/delete.svg" alt="Clear" width="14" height="14">
-                        Clear Completed
-                    </button>
-                </div>
-                <div id="downloadsList" class="downloads-list">
-                    <div class="empty-state">
-                        <img src="../assets/icons/download.svg" alt="No downloads" width="48" height="48" style="opacity: 0.3;">
-                        <p>No downloads yet</p>
+                    <!-- Update Status -->
+                    <div id="updateStatus" class="update-status hidden">
+                        <!-- Will be populated by JavaScript -->
                     </div>
-                </div>
-            </section>
+
+                    <!-- Update Details -->
+                    <div id="updateDetails" class="update-details hidden">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+
+                    <!-- Changelog -->
+                    <div id="changelogSection" class="changelog-section hidden">
+                        <h3>What's New</h3>
+                        <div id="changelogContent" class="changelog-content">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </section>
+            </div>
         </main>
 
         <!-- Control Panel -->

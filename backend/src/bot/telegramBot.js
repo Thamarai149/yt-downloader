@@ -50,8 +50,30 @@ class TelegramBotService {
         throw new Error('Telegram bot token not configured');
       }
 
-      this.bot = new TelegramBot(config.telegramBotToken, { polling: true });
+      this.bot = new TelegramBot(config.telegramBotToken, { 
+        polling: {
+          interval: 1000,
+          autoStart: true,
+          params: {
+            timeout: 10
+          }
+        }
+      });
+      
       this.setupEventHandlers();
+      
+      // Handle polling errors
+      this.bot.on('polling_error', (error) => {
+        if (error.code === 'ETELEGRAM' && error.response && error.response.statusCode === 409) {
+          logger.warn('Telegram bot conflict detected - another instance is running');
+          // Stop polling to avoid conflicts
+          this.bot.stopPolling();
+          throw new Error('Bot conflict: Another instance is already running');
+        } else {
+          logger.error('Telegram polling error:', error);
+        }
+      });
+      
       logger.info('Telegram bot initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize Telegram bot:', error);

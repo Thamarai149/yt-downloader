@@ -20,7 +20,3 @@ services:
         value: 15
       - key: RATE_LIMIT_MAX
         value: 50
-      - key: TELEGRAM_BOT_TOKEN
-        fromDatabase:
-          name: telegram-bot-token
-          property: connectionString

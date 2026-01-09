@@ -1,0 +1,431 @@
+/* Enhanced Features CSS for Electron App */
+
+/* Auto Updater Section */
+.update-info {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 12px;
+}
+
+.current-version {
+    margin-bottom: 12px;
+    color: var(--text-primary);
+}
+
+.update-status {
+    margin-bottom: 16px;
+    min-height: 24px;
+}
+
+.status-text {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    display: inline-block;
+}
+
+.status-text.checking {
+    background: #3b82f6;
+    color: white;
+}
+
+.status-text.update-available {
+    background: #10b981;
+    color: white;
+}
+
+.status-text.up-to-date {
+    background: #6b7280;
+    color: white;
+}
+
+.status-text.downloaded {
+    background: #8b5cf6;
+    color: white;
+}
+
+.status-text.downloading {
+    background: #f59e0b;
+    color: white;
+}
+
+.status-text.error {
+    background: #ef4444;
+    color: white;
+}
+
+.update-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* Download Progress */
+.download-progress {
+    width: 100%;
+}
+
+.progress-bar-container {
+    margin: 8px 0;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-primary);
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #059669);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    position: relative;
+}
+
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.download-details {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.download-speed {
+    font-weight: 600;
+    color: var(--accent-color);
+}
+
+.download-size {
+    font-family: 'Courier New', monospace;
+}
+
+/* System Integration */
+.setting-section {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.setting-section h4 {
+    margin: 0 0 16px 0;
+    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.setting-group {
+    margin-bottom: 16px;
+}
+
+.setting-group:last-child {
+    margin-bottom: 0;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: var(--text-primary);
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent-color);
+}
+
+.setting-hint {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+/* Advanced Download Manager */
+.advanced-download-section {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 20px;
+    border: 1px solid var(--border);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.section-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.advanced-content {
+    transition: all 0.3s ease;
+}
+
+.advanced-content.hidden {
+    display: none;
+}
+
+.advanced-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.control-group label {
+    color: var(--text-primary);
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.slider {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--bg-primary);
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    cursor: pointer;
+    border: none;
+}
+
+/* Scheduler Section */
+.scheduler-section {
+    margin-top: 20px;
+}
+
+.scheduler-section h4 {
+    margin: 0 0 16px 0;
+    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.scheduler-controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.scheduler-controls input[type="datetime-local"] {
+    flex: 1;
+    min-width: 200px;
+}
+
+.scheduled-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-primary);
+}
+
+.scheduled-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.scheduled-item:last-child {
+    border-bottom: none;
+}
+
+.scheduled-info {
+    flex: 1;
+}
+
+.scheduled-url {
+    color: var(--text-primary);
+    font-weight: 500;
+    margin-bottom: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+}
+
+.scheduled-time {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.scheduled-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* Button Variants */
+.btn-success {
+    background: #10b981;
+    color: white;
+    border: 1px solid #10b981;
+}
+
+.btn-success:hover {
+    background: #059669;
+    border-color: #059669;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 4px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .advanced-controls {
+        grid-template-columns: 1fr;
+    }
+    
+    .scheduler-controls {
+        flex-direction: column;
+    }
+    
+    .scheduler-controls input[type="datetime-local"] {
+        min-width: auto;
+    }
+    
+    .update-actions {
+        flex-direction: column;
+    }
+    
+    .scheduled-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .scheduled-actions {
+        align-self: flex-end;
+    }
+}
+
+/* Dark Theme Enhancements */
+[data-theme="dark"] .update-info,
+[data-theme="dark"] .setting-section,
+[data-theme="dark"] .advanced-download-section {
+    background: #1f2937;
+    border-color: #374151;
+}
+
+[data-theme="dark"] .scheduled-list {
+    background: #111827;
+    border-color: #374151;
+}
+
+[data-theme="dark"] .scheduled-item {
+    border-color: #374151;
+}
+
+/* Light Theme Enhancements */
+[data-theme="light"] .update-info,
+[data-theme="light"] .setting-section,
+[data-theme="light"] .advanced-download-section {
+    background: #f9fafb;
+    border-color: #e5e7eb;
+}
+
+[data-theme="light"] .scheduled-list {
+    background: #ffffff;
+    border-color: #e5e7eb;
+}
+
+[data-theme="light"] .scheduled-item {
+    border-color: #e5e7eb;
+}
+
+/* Animations */
+.advanced-content {
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.scheduled-item {
+    animation: fadeInLeft 0.3s ease;
+}
+
+@keyframes fadeInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}

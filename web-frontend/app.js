@@ -1,7 +1,5 @@
 // Configuration
-const API_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:3000' 
-    : 'https://yt-downloader-zsdv.onrender.com';
+const API_URL = 'http://localhost:3000';
 const socket = io(API_URL);
 
 // State
@@ -685,6 +683,8 @@ function removeWallpaper() {
     document.body.style.setProperty('--wallpaper-url', 'none');
     wallpaperPreview.classList.add('hidden');
     wallpaperInput.value = '';
+    // Clear any cached wallpaper
+    localStorage.removeItem('ytd_wallpaper_cache');
     saveSettings(); // Save settings after removing wallpaper
     showToast('Wallpaper removed', 'info');
 }
@@ -692,7 +692,11 @@ function removeWallpaper() {
 function applyWallpaper() {
     if (settings.wallpaper) {
         document.body.classList.add('has-wallpaper');
-        document.body.style.setProperty('--wallpaper-url', `url(${settings.wallpaper})`);
+        // Add timestamp to prevent caching issues
+        const wallpaperUrl = settings.wallpaper.includes('data:') 
+            ? settings.wallpaper 
+            : `${settings.wallpaper}?t=${Date.now()}`;
+        document.body.style.setProperty('--wallpaper-url', `url(${wallpaperUrl})`);
         // Apply current opacity and blur settings
         document.documentElement.style.setProperty('--wallpaper-opacity', settings.wallpaperOpacity / 100);
         document.documentElement.style.setProperty('--wallpaper-blur', `${settings.wallpaperBlur}px`);
@@ -1042,6 +1046,16 @@ document.addEventListener('keydown', (e) => {
 loadSettings();
 applyTheme(settings.theme);
 applyWallpaper();
+// Load wallpaper preview in settings if wallpaper exists
+if (settings.wallpaper) {
+    // Ensure DOM elements are available
+    const wallpaperPreview = document.getElementById('wallpaperPreview');
+    const wallpaperImg = document.getElementById('wallpaperImg');
+    if (wallpaperPreview && wallpaperImg) {
+        wallpaperPreview.classList.remove('hidden');
+        wallpaperImg.src = settings.wallpaper;
+    }
+}
 updateQueueCount();
 setupEventListeners();
 renderScheduledDownloads();

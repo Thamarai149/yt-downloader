@@ -5,6 +5,7 @@ import fileRoutes from './fileRoutes.js';
 import batchRoutes from './batchRoutes.js';
 import playlistRoutes from './playlistRoutes.js';
 import updateRoutes from './updateRoutes.js';
+import thumbnailRoutes from './thumbnailRoutes.js';
 
 const router = Router();
 
@@ -30,6 +31,7 @@ router.get('/', (req, res) => {
       files: '/api/files',
       batch: '/api/batch',
       playlist: '/api/playlist',
+      thumbnails: '/api/thumbnails',
       updates: '/api/updates'
     },
     telegram: {
@@ -45,6 +47,7 @@ router.use('/video', videoRoutes);
 router.use('/files', fileRoutes);
 router.use('/batch', batchRoutes);
 router.use('/playlist', playlistRoutes);
+router.use('/thumbnails', thumbnailRoutes);
 router.use('/updates', updateRoutes);
 
 export default router;

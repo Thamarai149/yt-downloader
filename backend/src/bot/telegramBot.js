@@ -62,13 +62,17 @@ class TelegramBotService {
       
       this.setupEventHandlers();
       
-      // Handle polling errors
+      // Handle polling errors gracefully
       this.bot.on('polling_error', (error) => {
         if (error.code === 'ETELEGRAM' && error.response && error.response.statusCode === 409) {
-          logger.warn('Telegram bot conflict detected - another instance is running');
-          // Stop polling to avoid conflicts
-          this.bot.stopPolling();
-          throw new Error('Bot conflict: Another instance is already running');
+          logger.warn('Telegram bot conflict detected - stopping polling to avoid conflicts');
+          // Stop polling gracefully
+          try {
+            this.bot.stopPolling();
+          } catch (stopError) {
+            logger.error('Error stopping polling:', stopError);
+          }
+          return; // Don't throw, just log and stop
         } else {
           logger.error('Telegram polling error:', error);
         }
@@ -94,6 +98,7 @@ class TelegramBotService {
     this.registerCommand('video', this.handleVideoDownload.bind(this));
     this.registerCommand('playlist', this.handlePlaylistDownload.bind(this));
     this.registerCommand('resolutions', this.handleResolutions.bind(this));
+    this.registerCommand('info', this.handleVideoInfo.bind(this));
     
     // User management
     this.registerCommand('settings', this.handleSettings.bind(this));
@@ -233,15 +238,17 @@ Let's get started! 🎵📹
 /video [URL] - Download video only
 /playlist [URL] - Download entire playlist
 
+📺 Info Commands:
+/info [URL] - Get video information
+/resolutions - Show available qualities
+/help - Show this help message
+/start - Welcome message
+
 ⚙️ User Commands:
 /settings - Configure preferences
 /history - View download history
 /cancel - Cancel current download
 /status - Check bot status
-
-📊 Info Commands:
-/help - Show this help message
-/start - Welcome message
 
 💡 Tips:
 • You can also just send a YouTube URL directly
@@ -350,6 +357,69 @@ Let's get started! 🎵📹
     `;
 
     await this.sendMessage(chatId, resolutionInfo);
+  }
+
+  async handleVideoInfo(msg, args) {
+    const chatId = msg.chat.id;
+    
+    if (args.length === 0) {
+      await this.sendMessage(chatId, 
+        'Please provide a YouTube URL.\nUsage: /info [YouTube URL]'
+      );
+      return;
+    }
+
+    const url = args[0];
+    if (!this.isYouTubeUrl(url)) {
+      await this.sendMessage(chatId, 'Please provide a valid YouTube URL.');
+      return;
+    }
+
+    try {
+      // Send loading message
+      const loadingMsg = await this.sendMessage(chatId, '🔄 Getting video information...');
+      
+      if (!this.videoInfoService) {
+        await this.editMessage(chatId, loadingMsg.message_id, 
+          '❌ Video info service is not available. Please try again later.');
+        return;
+      }
+
+      // Get video information
+      const videoInfo = await this.videoInfoService.getVideoInfo(url);
+      
+      if (!videoInfo) {
+        await this.editMessage(chatId, loadingMsg.message_id, 
+          '❌ Could not retrieve video information. Please check the URL and try again.');
+        return;
+      }
+
+      // Format video information
+      const infoMessage = `
+📺 *Video Information*
+
+🎬 *Title:* ${this.escapeMarkdown(videoInfo.title)}
+👤 *Channel:* ${this.escapeMarkdown(videoInfo.uploader || 'Unknown')}
+⏱️ *Duration:* ${this.formatDuration(videoInfo.duration)}
+👁️ *Views:* ${videoInfo.view_count ? this.formatNumber(videoInfo.view_count) : 'N/A'}
+📅 *Upload Date:* ${videoInfo.upload_date ? this.formatDate(videoInfo.upload_date) : 'N/A'}
+🆔 *Video ID:* \`${videoInfo.id}\`
+
+📝 *Description:*
+${videoInfo.description ? this.escapeMarkdown(videoInfo.description.substring(0, 200) + (videoInfo.description.length > 200 ? '...' : '')) : 'No description available'}
+
+💡 Use /download ${url} to download this video
+      `;
+
+      // Edit the loading message with video info
+      await this.editMessage(chatId, loadingMsg.message_id, infoMessage, {
+        parse_mode: 'Markdown'
+      });
+      
+    } catch (error) {
+      logger.error('Error getting video info:', error);
+      await this.sendErrorMessage(chatId, 'Failed to get video information. Please try again.');
+    }
   }
 
   async handlePlaylistDownload(msg, args) {
@@ -857,30 +927,71 @@ ${completedPlaylist.failed > 0 ? '⚠️ Some videos failed to download. This is
     const chatId = msg.chat.id;
     const urlId = this.generateUrlId(url);
     
-    const keyboard = {
-      inline_keyboard: [
-        [
-          { text: '🎵 Audio', callback_data: `qk_audio_best_${urlId}` },
-          { text: '🎬 Video Options', callback_data: `show_video_options_${urlId}` }
-        ],
-        [
-          { text: '🖥️ 720p HD', callback_data: `qk_video_720_${urlId}` },
-          { text: '📽️ 1080p FHD', callback_data: `qk_video_1080_${urlId}` }
-        ],
-        [
-          { text: '🎬 1440p 2K', callback_data: `qk_video_1440_${urlId}` },
-          { text: '🎭 2160p 4K', callback_data: `qk_video_2160_${urlId}` }
-        ],
-        [
-          { text: '⭐ Best Quality', callback_data: `qk_video_best_${urlId}` }
-        ]
-      ]
-    };
+    try {
+      // Send "getting info" message
+      const loadingMsg = await this.sendMessage(chatId, '🔄 Getting video information...');
+      
+      // Get video information first
+      let videoInfo = null;
+      let infoMessage = '';
+      
+      if (this.videoInfoService) {
+        try {
+          videoInfo = await this.videoInfoService.getVideoInfo(url);
+          
+          if (videoInfo) {
+            infoMessage = `
+📺 *Video Information*
 
-    await this.sendMessage(chatId, 
-      '🎬 Quick download - choose format:', 
-      { reply_markup: keyboard }
-    );
+🎬 *Title:* ${this.escapeMarkdown(videoInfo.title)}
+👤 *Channel:* ${this.escapeMarkdown(videoInfo.uploader || 'Unknown')}
+⏱️ *Duration:* ${this.formatDuration(videoInfo.duration)}
+👁️ *Views:* ${videoInfo.view_count ? this.formatNumber(videoInfo.view_count) : 'N/A'}
+📅 *Upload Date:* ${videoInfo.upload_date ? this.formatDate(videoInfo.upload_date) : 'N/A'}
+
+Choose download format:
+            `;
+          } else {
+            infoMessage = '🎬 *Video found!* Choose download format:';
+          }
+        } catch (error) {
+          logger.warn('Could not get video info:', error.message);
+          infoMessage = '🎬 *Video URL detected!* Choose download format:';
+        }
+      } else {
+        infoMessage = '🎬 *Video URL detected!* Choose download format:';
+      }
+      
+      const keyboard = {
+        inline_keyboard: [
+          [
+            { text: '🎵 Audio Only', callback_data: `qk_audio_best_${urlId}` },
+            { text: '🎬 Video Options', callback_data: `show_video_options_${urlId}` }
+          ],
+          [
+            { text: '🖥️ 720p HD', callback_data: `qk_video_720_${urlId}` },
+            { text: '📽️ 1080p FHD', callback_data: `qk_video_1080_${urlId}` }
+          ],
+          [
+            { text: '🎬 1440p 2K', callback_data: `qk_video_1440_${urlId}` },
+            { text: '🎭 2160p 4K', callback_data: `qk_video_2160_${urlId}` }
+          ],
+          [
+            { text: '⭐ Best Quality', callback_data: `qk_video_best_${urlId}` }
+          ]
+        ]
+      };
+
+      // Edit the loading message with video info and options
+      await this.editMessage(chatId, loadingMsg.message_id, infoMessage, {
+        reply_markup: keyboard,
+        parse_mode: 'Markdown'
+      });
+      
+    } catch (error) {
+      logger.error('Error in handleQuickDownload:', error);
+      await this.sendErrorMessage(chatId, 'Failed to get video information. Please try again.');
+    }
   }
 
   async startDownload(chatId, url, options = {}) {
@@ -1246,6 +1357,12 @@ This file (${fileSize}) is too large to send via Telegram (50MB limit).
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  // Helper method to escape markdown characters
+  escapeMarkdown(text) {
+    if (!text) return '';
+    return text.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
   }
 
   // Helper method to format duration

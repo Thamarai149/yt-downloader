@@ -7,6 +7,17 @@ let currentTheme = 'dark';
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', async () => {
+    // Hide loading screen after a short delay
+    setTimeout(() => {
+        const loadingScreen = document.getElementById('loadingScreen');
+        if (loadingScreen) {
+            loadingScreen.classList.add('hidden');
+            setTimeout(() => {
+                loadingScreen.remove();
+            }, 500);
+        }
+    }, 1000);
+    
     await loadSettings();
     await checkServerStatus();
     setupEventListeners();
@@ -15,7 +26,75 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadWallpaperSettings();
     loadUISettings();
     updateStats();
+    initializeTabs(); // Initialize tab functionality
+    loadVersionInfo(); // Load version info on startup
+    setupResponsiveHandlers(); // Setup responsive behavior
 });
+
+// Setup responsive handlers
+function setupResponsiveHandlers() {
+    // Handle window resize
+    window.addEventListener('resize', debounce(() => {
+        handleWindowResize();
+    }, 250));
+    
+    // Handle orientation change on mobile
+    window.addEventListener('orientationchange', () => {
+        setTimeout(() => {
+            handleWindowResize();
+        }, 100);
+    });
+    
+    // Initial resize check
+    handleWindowResize();
+}
+
+// Handle window resize events
+function handleWindowResize() {
+    const width = window.innerWidth;
+    
+    // Close panels on mobile when switching to landscape
+    if (width <= 768) {
+        const openPanels = document.querySelectorAll('.side-panel:not(.hidden)');
+        if (openPanels.length > 0 && window.innerHeight < 500) {
+            closeAllPanels();
+        }
+    }
+    
+    // Adjust FAB position if needed
+    adjustFabPosition();
+}
+
+// Adjust FAB position for different screen sizes
+function adjustFabPosition() {
+    const fab = document.querySelector('.fab-container');
+    if (!fab) return;
+    
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    
+    // Move FAB higher on very small screens
+    if (width <= 480 || height <= 600) {
+        fab.style.bottom = '20px';
+        fab.style.right = '20px';
+    } else {
+        fab.style.bottom = '30px';
+        fab.style.right = '30px';
+    }
+}
+
+// Debounce utility function
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
 
 // Setup keyboard shortcuts
 function setupKeyboardShortcuts() {
@@ -213,6 +292,27 @@ function setupUIEventListeners() {
         blurSlider.addEventListener('input', updateWallpaperBlur);
     }
 
+    // Data management buttons
+    const thumbnailGallery = document.getElementById('thumbnailGallery');
+    if (thumbnailGallery) {
+        thumbnailGallery.addEventListener('click', openThumbnailGallery);
+    }
+
+    const exportSettings = document.getElementById('exportSettings');
+    if (exportSettings) {
+        exportSettings.addEventListener('click', exportSettingsData);
+    }
+
+    const importSettings = document.getElementById('importSettings');
+    if (importSettings) {
+        importSettings.addEventListener('click', importSettingsData);
+    }
+
+    const clearAllData = document.getElementById('clearAllData');
+    if (clearAllData) {
+        clearAllData.addEventListener('click', clearAllDataConfirm);
+    }
+
     // Theme select
     const themeSelect = document.getElementById('themeSelect');
     if (themeSelect) {
@@ -246,6 +346,12 @@ function setupUIEventListeners() {
     const overlay = document.getElementById('overlay');
     if (overlay) {
         overlay.addEventListener('click', closeAllPanels);
+    }
+
+    // Check updates button
+    const checkUpdatesBtn = document.getElementById('checkUpdatesBtn');
+    if (checkUpdatesBtn) {
+        checkUpdatesBtn.addEventListener('click', checkForUpdates);
     }
 }
 
@@ -1776,19 +1882,176 @@ async function showChangelog(version) {
 
 function openDownloadPage(url) {
     // Open the download URL in the default browser
-    require('electron').shell.openExternal(url);
+    if (window.electronAPI && window.electronAPI.openExternal) {
+        window.electronAPI.openExternal(url).then((result) => {
+            if (result.success) {
+                showToast('Opening download page...', 'info');
+            } else {
+                showToast('Failed to open download page', 'error');
+                console.log('Download URL:', url);
+            }
+        }).catch((error) => {
+            console.error('Error opening external URL:', error);
+            showToast('Download link: ' + url, 'info');
+        });
+    } else {
+        console.log('Would open:', url);
+        showToast('Download link: ' + url, 'info');
+    }
+}
+// Handle uncaught errors
+window.addEventListener('error', (event) => {
+    console.error('Uncaught error:', event.error);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled promise rejection:', event.reason);
+});
+// Data Management Functions
+function openThumbnailGallery() {
+    // Create thumbnail gallery modal
+    const modal = document.createElement('div');
+    modal.className = 'thumbnail-gallery-modal';
+    modal.innerHTML = `
+        <div class="modal-overlay" onclick="closeThumbnailGallery()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>
+                    <img src="../assets/icons/gallery.svg" alt="Gallery" width="20" height="20">
+                    Thumbnail Gallery
+                </h3>
+                <button class="close-btn" onclick="closeThumbnailGallery()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="thumbnail-grid" id="thumbnailGrid">
+                    <div class="empty-state">
+                        <img src="../assets/icons/gallery.svg" alt="No thumbnails" width="48" height="48" style="opacity: 0.3;">
+                        <p>No thumbnails cached yet</p>
+                        <small>Thumbnails will appear here after downloading videos</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="clearThumbnailCache()">
+                    <img src="../assets/icons/delete.svg" alt="Clear" width="16" height="16">
+                    Clear Cache
+                </button>
+                <button class="btn btn-primary" onclick="closeThumbnailGallery()">
+                    Close
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    showToast('Thumbnail gallery opened', 'info');
 }
 
-// Initialize tabs when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    initializeTabs();
-    
-    // Add event listener for check updates button
-    const checkUpdatesBtn = document.getElementById('checkUpdatesBtn');
-    if (checkUpdatesBtn) {
-        checkUpdatesBtn.addEventListener('click', checkForUpdates);
+function closeThumbnailGallery() {
+    const modal = document.querySelector('.thumbnail-gallery-modal');
+    if (modal) {
+        modal.remove();
     }
+}
+
+function clearThumbnailCache() {
+    // Clear thumbnail cache
+    localStorage.removeItem('thumbnailCache');
+    showToast('Thumbnail cache cleared', 'info');
+    closeThumbnailGallery();
+}
+
+function exportSettingsData() {
+    try {
+        const settings = {
+            theme: localStorage.getItem('theme'),
+            wallpaperImage: localStorage.getItem('wallpaperImage'),
+            wallpaperOpacity: localStorage.getItem('wallpaperOpacity'),
+            wallpaperBlur: localStorage.getItem('wallpaperBlur'),
+            defaultQuality: localStorage.getItem('defaultQuality'),
+            defaultAudioQuality: localStorage.getItem('defaultAudioQuality'),
+            defaultType: localStorage.getItem('defaultType'),
+            autoDownload: localStorage.getItem('autoDownload'),
+            showNotifications: localStorage.getItem('showNotifications'),
+            downloadPath: localStorage.getItem('downloadPath')
+        };
+        
+        const dataStr = JSON.stringify(settings, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `ytd-settings-${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        
+        showToast('Settings exported successfully', 'success');
+    } catch (error) {
+        console.error('Export failed:', error);
+        showToast('Failed to export settings', 'error');
+    }
+}
+
+function importSettingsData() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
     
-    // Load version info on startup
-    loadVersionInfo();
-});
+    input.onchange = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const settings = JSON.parse(e.target.result);
+                
+                // Import settings
+                Object.keys(settings).forEach(key => {
+                    if (settings[key] !== null && settings[key] !== undefined) {
+                        localStorage.setItem(key, settings[key]);
+                    }
+                });
+                
+                showToast('Settings imported successfully. Please restart the app.', 'success');
+            } catch (error) {
+                console.error('Import failed:', error);
+                showToast('Failed to import settings', 'error');
+            }
+        };
+        reader.readAsText(file);
+    };
+    
+    input.click();
+}
+
+function clearAllDataConfirm() {
+    if (confirm('Are you sure you want to clear all data? This will reset all settings and cannot be undone.')) {
+        clearAllData();
+    }
+}
+
+function clearAllData() {
+    try {
+        // Clear all localStorage data
+        localStorage.clear();
+        
+        // Reset theme
+        currentTheme = 'dark';
+        document.documentElement.setAttribute('data-theme', currentTheme);
+        
+        // Clear downloads
+        downloadQueue.length = 0;
+        activeDownloads.length = 0;
+        completedDownloads.length = 0;
+        
+        // Update UI
+        updateDownloadsList();
+        updateStats();
+        loadUISettings();
+        
+        showToast('All data cleared successfully', 'success');
+    } catch (error) {
+        console.error('Clear data failed:', error);
+        showToast('Failed to clear data', 'error');
+    }
+} 

@@ -1,6 +1,6 @@
 {
   "name": "ytstreamer-pro-manager",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "YTStreamer Pro Manager - Professional YouTube Downloader Control Panel",
   "author": "YTStreamer Pro",
   "main": "src/main.js",
@@ -22,7 +22,8 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "assets/icon.ico"
+      "icon": "assets/icon.ico",
+      "publisherName": "YTStreamer Pro"
     },
     "nsis": {
       "oneClick": false,
@@ -31,6 +32,12 @@
       "createStartMenuShortcut": true,
       "allowElevation": true,
       "perMachine": false
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "your-github-username",
+      "repo": "yt-downloader",
+      "private": false
     }
   },
   "devDependencies": {
@@ -39,6 +46,7 @@
   },
   "dependencies": {
     "electron-store": "^8.1.0",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "electron-updater": "^6.1.7"
   }
 }

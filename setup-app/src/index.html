@@ -2,11 +2,68 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>YouTube Downloader Pro</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="features.css">
+    <style>
+        /* Loading screen styles */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0F0F0F 0%, #1F1F1F 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease-out;
+        }
+        
+        .loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loading-logo {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+        
+        .loading-text {
+            color: #FFFFFF;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #FF0000 0%, #FF6B6B 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .loading-subtitle {
+            color: #AAAAAA;
+            font-size: 14px;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+    </style>
 </head>
 <body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <img src="../assets/icon.ico" alt="App Icon" class="loading-logo">
+        <div class="loading-text">YouTube Downloader Pro</div>
+        <div class="loading-subtitle">Loading application...</div>
+    </div>
     <div class="container">
         <!-- Header -->
         <header class="header">
@@ -335,7 +392,7 @@
                     <label>Background Wallpaper</label>
                     <div class="wallpaper-options">
                         <button type="button" class="btn btn-secondary btn-small" id="uploadWallpaper">
-                            <img src="../assets/icons/download.svg" alt="Upload" width="14" height="14">
+                            <img src="../assets/icons/upload.svg" alt="Upload" width="14" height="14">
                             Upload Image
                         </button>
                         <button type="button" class="btn btn-secondary btn-small" id="removeWallpaper">
@@ -362,6 +419,28 @@
                     <div class="slider-container">
                         <input type="range" id="wallpaperBlur" min="0" max="20" value="5" class="slider">
                         <span id="blurValue" class="slider-value">5px</span>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label>Data Management</label>
+                    <div class="data-management-options">
+                        <button type="button" class="btn btn-secondary btn-small" id="thumbnailGallery">
+                            <img src="../assets/icons/gallery.svg" alt="Gallery" width="14" height="14">
+                            Thumbnail Gallery
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-small" id="exportSettings">
+                            <img src="../assets/icons/export.svg" alt="Export" width="14" height="14">
+                            Export Settings
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-small" id="importSettings">
+                            <img src="../assets/icons/import.svg" alt="Import" width="14" height="14">
+                            Import Settings
+                        </button>
+                        <button type="button" class="btn btn-danger btn-small" id="clearAllData">
+                            <img src="../assets/icons/clear.svg" alt="Clear" width="14" height="14">
+                            Clear All Data
+                        </button>
                     </div>
                 </div>
             </div>
@@ -421,5 +500,6 @@
     <div id="toastContainer" class="toast-container"></div>
 
     <script src="renderer.js"></script>
+    <script src="features.js"></script>
 </body>
 </html>

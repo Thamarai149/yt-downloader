@@ -1,0 +1,324 @@
+/* New Features CSS */
+
+/* Thumbnail Gallery */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background: var(--bg-primary);
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.modal-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 18px;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.gallery-controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.gallery-item {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: 1px solid var(--border);
+}
+
+.gallery-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.gallery-item img {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    display: block;
+}
+
+.gallery-item-info {
+    padding: 12px;
+}
+
+.video-id {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 14px;
+    margin-bottom: 4px;
+    font-family: 'Courier New', monospace;
+}
+
+.file-size, .created-date {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+}
+
+.gallery-pagination {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.gallery-pagination .btn.active {
+    background: var(--accent-color);
+    color: white;
+}
+
+.loading, .empty-state, .error-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+    font-size: 16px;
+}
+
+.error-state {
+    color: var(--error-color);
+}
+
+/* Wallpaper Presets */
+.wallpaper-presets {
+    margin-top: 16px;
+}
+
+.preset-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.preset-btn {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.preset-btn:hover {
+    border-color: var(--accent-color);
+    transform: translateY(-2px);
+}
+
+.preset-preview {
+    width: 100%;
+    height: 60px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+}
+
+.preset-btn span {
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: block;
+}
+
+/* Wallpaper History */
+.wallpaper-history {
+    margin-top: 16px;
+}
+
+.history-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.history-btn {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.history-btn:hover {
+    border-color: var(--accent-color);
+    transform: scale(1.05);
+}
+
+.history-preview {
+    width: 100%;
+    height: 40px;
+    border-radius: 4px;
+}
+
+.empty-history {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 14px;
+    padding: 20px;
+}
+
+/* Advanced Settings */
+.advanced-settings {
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+    margin-top: 20px;
+}
+
+.advanced-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.btn-small {
+    padding: 8px 12px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.btn-danger {
+    background: var(--error-color);
+    color: white;
+    border: 1px solid var(--error-color);
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .modal-content {
+        margin: 20px;
+        max-width: calc(100vw - 40px);
+        max-height: calc(100vh - 40px);
+    }
+    
+    .gallery-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 12px;
+    }
+    
+    .preset-grid {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    }
+    
+    .advanced-buttons {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Dark/Light Theme Support */
+[data-theme="light"] .modal-content {
+    background: #ffffff;
+    border-color: #e5e7eb;
+}
+
+[data-theme="light"] .gallery-item {
+    background: #f9fafb;
+    border-color: #e5e7eb;
+}
+
+[data-theme="light"] .preset-btn,
+[data-theme="light"] .history-btn {
+    background: #f9fafb;
+    border-color: #e5e7eb;
+}
+
+/* Animation for smooth transitions */
+.gallery-item,
+.preset-btn,
+.history-btn {
+    animation: fadeInUp 0.3s ease forwards;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Enhanced wallpaper display */
+body.has-wallpaper::before {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
+/* Gradient wallpaper support */
+body.has-wallpaper.gradient-wallpaper::before {
+    background-size: 100% 100%;
+    background-attachment: fixed;
+}

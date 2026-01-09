@@ -4,6 +4,7 @@ import { FileService } from './fileService.js';
 import { BatchService } from './batchService.js';
 import { PlaylistService } from './playlistService.js';
 import { UpdateService } from './updateService.js';
+import { ThumbnailService } from './thumbnailService.js';
 import { TelegramBotService } from '../bot/telegramBot.js';
 
 let downloadService;
@@ -12,6 +13,7 @@ let fileService;
 let batchService;
 let playlistService;
 let updateService;
+let thumbnailService;
 let telegramBotService;
 
 export const initializeServices = (io) => {
@@ -21,11 +23,26 @@ export const initializeServices = (io) => {
   batchService = new BatchService(downloadService, io);
   playlistService = new PlaylistService(downloadService, io);
   updateService = new UpdateService();
+  thumbnailService = new ThumbnailService();
   
-  // Disable Telegram bot for now to avoid conflicts
-  console.log('📱 Telegram bot disabled to prevent conflicts');
-  console.log('🌐 Web interface is fully functional without Telegram bot');
-  telegramBotService = null;
+  // Initialize Telegram bot
+  try {
+    if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN.trim() !== '') {
+      telegramBotService = new TelegramBotService(downloadService, videoInfoService);
+      telegramBotService.setPlaylistService(playlistService);
+      telegramBotService.initialize().catch(error => {
+        console.warn('⚠️ Telegram bot initialization failed:', error.message);
+        console.log('📱 Web interface will work without Telegram bot');
+        telegramBotService = null;
+      });
+    } else {
+      console.log('📱 Telegram bot disabled - no token provided');
+      telegramBotService = null;
+    }
+  } catch (error) {
+    console.warn('⚠️ Telegram bot setup failed:', error.message);
+    telegramBotService = null;
+  }
   
   console.log('✅ Services initialized');
 };
@@ -36,10 +53,5 @@ export const getFileService = () => fileService;
 export const getBatchService = () => batchService;
 export const getPlaylistService = () => playlistService;
 export const getUpdateService = () => updateService;
-export const getTelegramBotService = () => {
-  if (!telegramBotService) {
-    console.warn('Telegram bot service not available');
-    return null;
-  }
-  return telegramBotService;
-};
+export const getThumbnailService = () => thumbnailService;
+export const getTelegramBotService = () => telegramBotService;

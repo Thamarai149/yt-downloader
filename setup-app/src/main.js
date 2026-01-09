@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const { spawn, exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -10,21 +11,35 @@ let mainWindow;
 let backendProcess = null;
 let downloadSocket = null;
 
+// Auto-updater configuration
+if (app.isPackaged) {
+  autoUpdater.checkForUpdatesAndNotify();
+  autoUpdater.autoDownload = false; // We'll handle download manually
+  autoUpdater.autoInstallOnAppQuit = true;
+} else {
+  console.log('Development mode - auto-updater disabled');
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
-    minWidth: 600,
-    minHeight: 400,
+    width: 1200,
+    height: 800,
+    minWidth: 800,
+    minHeight: 600,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      backgroundThrottling: false
     },
     icon: path.join(__dirname, '../assets/icon.ico'),
     resizable: true,
     maximizable: true,
-    show: false
+    show: false,
+    titleBarStyle: 'default',
+    backgroundColor: '#0F0F0F'
   });
 
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
@@ -32,11 +47,116 @@ function createWindow() {
   // Remove menu bar
   mainWindow.setMenuBarVisibility(false);
   
+  // Handle loading errors
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('Failed to load:', errorCode, errorDescription);
+  });
+  
   // Show window when ready to prevent visual flash
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    mainWindow.focus();
+    
+    // Check for updates after window is shown (only in production)
+    if (app.isPackaged) {
+      setTimeout(() => {
+        autoUpdater.checkForUpdatesAndNotify();
+      }, 3000);
+    }
+  });
+  
+  // Handle window closed
+  mainWindow.on('closed', () => {
+    mainWindow = null;
   });
 }
+
+// Auto-updater event handlers
+autoUpdater.on('checking-for-update', () => {
+  console.log('Checking for update...');
+  if (mainWindow) {
+    mainWindow.webContents.send('update-status', { 
+      status: 'checking', 
+      message: 'Checking for updates...' 
+    });
+  }
+});
+
+autoUpdater.on('update-available', (info) => {
+  console.log('Update available:', info);
+  if (mainWindow) {
+    mainWindow.webContents.send('update-status', { 
+      status: 'available', 
+      message: `Update available: v${info.version}`,
+      version: info.version,
+      releaseNotes: info.releaseNotes
+    });
+  }
+});
+
+autoUpdater.on('update-not-available', (info) => {
+  console.log('Update not available:', info);
+  if (mainWindow) {
+    mainWindow.webContents.send('update-status', { 
+      status: 'not-available', 
+      message: 'You have the latest version',
+      version: info.version
+    });
+  }
+});
+
+autoUpdater.on('error', (err) => {
+  console.error('Update error:', err);
+  if (mainWindow) {
+    mainWindow.webContents.send('update-status', { 
+      status: 'error', 
+      message: 'Update check failed',
+      error: err.message
+    });
+  }
+});
+
+autoUpdater.on('download-progress', (progressObj) => {
+  let log_message = "Download speed: " + progressObj.bytesPerSecond;
+  log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
+  log_message = log_message + ' (' + progressObj.transferred + "/" + progressObj.total + ')';
+  console.log(log_message);
+  
+  if (mainWindow) {
+    mainWindow.webContents.send('update-progress', {
+      percent: Math.round(progressObj.percent),
+      transferred: progressObj.transferred,
+      total: progressObj.total,
+      bytesPerSecond: progressObj.bytesPerSecond
+    });
+  }
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  console.log('Update downloaded:', info);
+  if (mainWindow) {
+    mainWindow.webContents.send('update-status', { 
+      status: 'downloaded', 
+      message: 'Update downloaded. Restart to apply.',
+      version: info.version
+    });
+  }
+  
+  // Show dialog to restart
+  dialog.showMessageBox(mainWindow, {
+    type: 'info',
+    title: 'Update Ready',
+    message: 'Update has been downloaded. The application will restart to apply the update.',
+    buttons: ['Restart Now', 'Later'],
+    defaultId: 0
+  }).then((result) => {
+    if (result.response === 0) {
+      // Clean up before restart
+      cleanupResources();
+      autoUpdater.quitAndInstall();
+    }
+  });
+});
 
 app.whenReady().then(createWindow);
 
@@ -79,7 +199,90 @@ app.on('activate', () => {
   }
 });
 
-// IPC handlers
+// IPC handlers for auto-updater
+ipcMain.handle('check-for-updates', async () => {
+  try {
+    // In development mode, return mock data
+    if (!app.isPackaged) {
+      console.log('Development mode - skipping real update check');
+      return {
+        hasUpdate: false,
+        currentVersion: app.getVersion(),
+        message: 'Update checking disabled in development mode'
+      };
+    }
+    
+    const result = await autoUpdater.checkForUpdates();
+    return {
+      hasUpdate: result && result.updateInfo,
+      updateInfo: result ? result.updateInfo : null,
+      currentVersion: app.getVersion()
+    };
+  } catch (error) {
+    console.error('Error checking for updates:', error);
+    return {
+      hasUpdate: false,
+      error: error.message,
+      currentVersion: app.getVersion()
+    };
+  }
+});
+
+ipcMain.handle('download-update', async () => {
+  try {
+    if (!app.isPackaged) {
+      return { success: false, error: 'Updates not available in development mode' };
+    }
+    await autoUpdater.downloadUpdate();
+    return { success: true };
+  } catch (error) {
+    console.error('Error downloading update:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('install-update', () => {
+  if (!app.isPackaged) {
+    return { success: false, error: 'Updates not available in development mode' };
+  }
+  cleanupResources();
+  autoUpdater.quitAndInstall();
+});
+
+ipcMain.handle('get-app-version', () => {
+  return app.getVersion();
+});
+
+ipcMain.handle('get-version-info', async () => {
+  return {
+    currentVersion: app.getVersion(),
+    lastUpdateCheck: store.get('lastUpdateCheck', null),
+    isPackaged: app.isPackaged
+  };
+});
+
+ipcMain.handle('get-changelog', async (event, version) => {
+  // Mock changelog for development
+  return {
+    version: version,
+    releaseDate: new Date().toISOString().split('T')[0],
+    features: [
+      'Improved responsive layout for mobile devices',
+      'Fixed missing SVG icons',
+      'Enhanced download progress tracking'
+    ],
+    improvements: [
+      'Better error handling',
+      'Optimized performance'
+    ],
+    bugFixes: [
+      'Fixed IPC handler conflicts',
+      'Resolved icon loading issues'
+    ]
+  };
+});
+
+// IPC handlers for app functionality
 ipcMain.handle('get-settings', () => {
   return {
     backendPath: store.get('backendPath', ''),
@@ -90,64 +293,18 @@ ipcMain.handle('get-settings', () => {
   };
 });
 
-ipcMain.handle('check-for-updates', async () => {
-  try {
-    const serverPort = store.get('serverPort', 3000);
-    const response = await fetch(`http://localhost:${serverPort}/api/updates/check`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    return data.data;
-  } catch (error) {
-    console.error('Error checking for updates:', error);
-    return {
-      hasUpdate: false,
-      error: error.message,
-      currentVersion: 'Unknown'
-    };
-  }
+ipcMain.handle('get-backend-status', () => {
+  return { running: backendProcess !== null && !backendProcess.killed };
 });
 
-ipcMain.handle('get-version-info', async () => {
+ipcMain.handle('open-external', async (event, url) => {
   try {
-    const serverPort = store.get('serverPort', 3000);
-    const response = await fetch(`http://localhost:${serverPort}/api/updates/version`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    return data.data;
+    const { shell } = require('electron');
+    await shell.openExternal(url);
+    return { success: true };
   } catch (error) {
-    console.error('Error getting version info:', error);
-    return {
-      currentVersion: 'Unknown',
-      error: error.message
-    };
-  }
-});
-
-ipcMain.handle('get-changelog', async (event, version) => {
-  try {
-    const serverPort = store.get('serverPort', 3000);
-    const response = await fetch(`http://localhost:${serverPort}/api/updates/changelog/${version}`);
-    
-    if (!response.ok) {
-      if (response.status === 404) {
-        return null;
-      }
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    return data.data;
-  } catch (error) {
-    console.error('Error getting changelog:', error);
-    return null;
+    console.error('Error opening external URL:', error);
+    return { success: false, error: error.message };
   }
 });
 
@@ -315,10 +472,6 @@ ipcMain.handle('stop-backend', () => {
     }
   }
   return { success: false, error: 'No backend process running' };
-});
-
-ipcMain.handle('get-backend-status', () => {
-  return { running: backendProcess !== null };
 });
 
 ipcMain.handle('install-dependencies', async () => {

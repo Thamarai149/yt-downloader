@@ -34,7 +34,7 @@
     "sanitize-filename": "^1.6.3",
     "socket.io": "^4.6.1",
     "uuid": "^9.0.1",
-    "yt-dlp-wrap": "^2.1.1"
+    "youtube-dl-exec": "^2.4.13"
   },
   "devDependencies": {
     "eslint": "^8.55.0",

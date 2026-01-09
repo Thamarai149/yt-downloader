@@ -2,6 +2,9 @@ import youtubedl from 'youtube-dl-exec';
 import { AppError } from '../middleware/errorHandler.js';
 import { isValidYouTubeUrl } from '../utils/youtubeValidator.js';
 
+// Configure youtube-dl-exec to use yt-dlp
+youtubedl.exec = 'yt-dlp';
+
 export class VideoInfoService {
   async getVideoInfo(url) {
     try {

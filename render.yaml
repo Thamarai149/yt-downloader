@@ -3,7 +3,7 @@ services:
     name: streamedv3-bot
     env: node
     plan: free
-    buildCommand: cd backend && npm install
+    buildCommand: cd backend && npm install && pip install yt-dlp
     startCommand: cd backend && npm start
     envVars:
       - key: NODE_ENV

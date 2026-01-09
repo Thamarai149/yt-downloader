@@ -1,5 +1,7 @@
 // Configuration
-const API_URL = 'http://localhost:3000';
+const API_URL = window.location.hostname === 'localhost' 
+    ? 'http://localhost:3000' 
+    : 'https://yt-downloader-zsdv.onrender.com';
 const socket = io(API_URL);
 
 // State
@@ -671,6 +673,7 @@ function handleWallpaperUpload(e) {
         applyWallpaper();
         wallpaperPreview.classList.remove('hidden');
         wallpaperImg.src = settings.wallpaper;
+        saveSettings(); // Save settings after uploading wallpaper
         showToast('Wallpaper uploaded', 'success');
     };
     reader.readAsDataURL(file);
@@ -682,6 +685,7 @@ function removeWallpaper() {
     document.body.style.setProperty('--wallpaper-url', 'none');
     wallpaperPreview.classList.add('hidden');
     wallpaperInput.value = '';
+    saveSettings(); // Save settings after removing wallpaper
     showToast('Wallpaper removed', 'info');
 }
 
@@ -689,8 +693,12 @@ function applyWallpaper() {
     if (settings.wallpaper) {
         document.body.classList.add('has-wallpaper');
         document.body.style.setProperty('--wallpaper-url', `url(${settings.wallpaper})`);
+        // Apply current opacity and blur settings
+        document.documentElement.style.setProperty('--wallpaper-opacity', settings.wallpaperOpacity / 100);
+        document.documentElement.style.setProperty('--wallpaper-blur', `${settings.wallpaperBlur}px`);
     } else {
         document.body.classList.remove('has-wallpaper');
+        document.body.style.setProperty('--wallpaper-url', 'none');
     }
 }
 
@@ -698,14 +706,8 @@ function updateWallpaperOpacity(e) {
     const value = e.target.value;
     settings.wallpaperOpacity = value;
     opacityValue.textContent = `${value}%`;
-    document.body.style.setProperty('--wallpaper-opacity', value / 100);
-    
-    const beforeElement = document.querySelector('body::before');
-    if (beforeElement) {
-        document.body.style.opacity = value / 100;
-    }
-    // Update the pseudo-element opacity via CSS variable
     document.documentElement.style.setProperty('--wallpaper-opacity', value / 100);
+    saveSettings(); // Save settings when opacity changes
 }
 
 function updateWallpaperBlur(e) {
@@ -713,6 +715,7 @@ function updateWallpaperBlur(e) {
     settings.wallpaperBlur = value;
     blurValue.textContent = `${value}px`;
     document.documentElement.style.setProperty('--wallpaper-blur', `${value}px`);
+    saveSettings(); // Save settings when blur changes
 }
 
 // Settings Management
@@ -1045,6 +1048,7 @@ renderScheduledDownloads();
 
 // Apply wallpaper settings
 document.documentElement.style.setProperty('--wallpaper-opacity', settings.wallpaperOpacity / 100);
+document.documentElement.style.setProperty('--wallpaper-blur', `${settings.wallpaperBlur}px`);
 document.documentElement.style.setProperty('--wallpaper-blur', `${settings.wallpaperBlur}px`);
 
 console.log('YouTube Downloader Pro initialized with enhanced features');

@@ -315,10 +315,48 @@ body.has-wallpaper::before {
     background-position: center;
     background-repeat: no-repeat;
     background-attachment: fixed;
+    width: 100vw;
+    height: 100vh;
+    min-height: 100vh;
 }
 
 /* Gradient wallpaper support */
 body.has-wallpaper.gradient-wallpaper::before {
     background-size: 100% 100%;
     background-attachment: fixed;
+    width: 100vw;
+    height: 100vh;
+    min-height: 100vh;
+}
+
+/* Ensure no black spaces around wallpaper */
+body.has-wallpaper {
+    overflow-x: hidden;
+}
+
+/* Fix for mobile viewport issues */
+@media (max-width: 768px) {
+    body.has-wallpaper::before {
+        background-attachment: scroll;
+        min-height: 100vh;
+        height: 100vh;
+        /* Fix for mobile browsers with dynamic viewport */
+        height: 100dvh;
+        min-height: 100dvh;
+    }
+    
+    html, body {
+        height: 100dvh;
+        min-height: 100dvh;
+    }
+}
+
+/* Fix for very large screens */
+@media (min-width: 1920px) {
+    body.has-wallpaper::before {
+        width: 100vw;
+        height: 100vh;
+        min-width: 100vw;
+        min-height: 100vh;
+    }
 }

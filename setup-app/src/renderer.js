@@ -1279,9 +1279,11 @@ function handleWallpaperUpload(event) {
         // Apply wallpaper
         document.documentElement.style.setProperty('--wallpaper-url', `url(${imageUrl})`);
         document.body.classList.add('has-wallpaper');
+        document.body.classList.remove('gradient-wallpaper'); // Remove gradient class for images
         
         // Save to localStorage
         localStorage.setItem('wallpaperImage', imageUrl);
+        localStorage.setItem('wallpaperType', 'image');
         
         showToast('Wallpaper uploaded successfully!', 'success');
     };
@@ -1293,6 +1295,7 @@ function removeWallpaperImage() {
     // Remove wallpaper
     document.documentElement.style.removeProperty('--wallpaper-url');
     document.body.classList.remove('has-wallpaper');
+    document.body.classList.remove('gradient-wallpaper');
     
     // Hide preview
     const preview = document.getElementById('wallpaperPreview');
@@ -1300,6 +1303,7 @@ function removeWallpaperImage() {
     
     // Clear from localStorage
     localStorage.removeItem('wallpaperImage');
+    localStorage.removeItem('wallpaperType');
     
     showToast('Wallpaper removed', 'info');
 }
@@ -1322,9 +1326,18 @@ function updateWallpaperBlur(event) {
 function loadWallpaperSettings() {
     // Load wallpaper image
     const savedWallpaper = localStorage.getItem('wallpaperImage');
+    const wallpaperType = localStorage.getItem('wallpaperType') || 'image';
+    
     if (savedWallpaper) {
         document.documentElement.style.setProperty('--wallpaper-url', `url(${savedWallpaper})`);
         document.body.classList.add('has-wallpaper');
+        
+        // Add gradient class if it's a gradient wallpaper
+        if (wallpaperType === 'gradient' || savedWallpaper.includes('gradient')) {
+            document.body.classList.add('gradient-wallpaper');
+        } else {
+            document.body.classList.remove('gradient-wallpaper');
+        }
         
         const preview = document.getElementById('wallpaperPreview');
         const img = document.getElementById('wallpaperImg');

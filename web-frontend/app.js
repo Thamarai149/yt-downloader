@@ -692,16 +692,26 @@ function removeWallpaper() {
 function applyWallpaper() {
     if (settings.wallpaper) {
         document.body.classList.add('has-wallpaper');
+        
+        // Check if it's a gradient wallpaper
+        if (settings.wallpaper.includes('gradient') || settings.wallpaperType === 'gradient') {
+            document.body.classList.add('gradient-wallpaper');
+        } else {
+            document.body.classList.remove('gradient-wallpaper');
+        }
+        
         // Add timestamp to prevent caching issues
         const wallpaperUrl = settings.wallpaper.includes('data:') 
             ? settings.wallpaper 
             : `${settings.wallpaper}?t=${Date.now()}`;
         document.body.style.setProperty('--wallpaper-url', `url(${wallpaperUrl})`);
+        
         // Apply current opacity and blur settings
         document.documentElement.style.setProperty('--wallpaper-opacity', settings.wallpaperOpacity / 100);
         document.documentElement.style.setProperty('--wallpaper-blur', `${settings.wallpaperBlur}px`);
     } else {
         document.body.classList.remove('has-wallpaper');
+        document.body.classList.remove('gradient-wallpaper');
         document.body.style.setProperty('--wallpaper-url', 'none');
     }
 }

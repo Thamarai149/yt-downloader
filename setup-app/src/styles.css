@@ -64,6 +64,9 @@ body {
     margin: 0 auto;
     padding: 20px;
     box-sizing: border-box;
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
 }
 
 @media (max-width: 768px) {
@@ -1532,20 +1535,47 @@ body::before {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
+    width: 100vw;
+    height: 100vh;
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+    background-attachment: fixed;
     opacity: var(--wallpaper-opacity);
     filter: blur(var(--wallpaper-blur));
     z-index: -1;
     transition: opacity 0.3s ease, filter 0.3s ease;
     pointer-events: none;
+    /* Ensure wallpaper covers everything */
+    min-width: 100vw;
+    min-height: 100vh;
+    /* Prevent any gaps */
+    margin: 0;
+    padding: 0;
 }
 
 body.has-wallpaper::before {
     background-image: var(--wallpaper-url);
+}
+
+/* Ensure body and html take full height */
+html, body {
+    height: 100%;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+/* Fix for wallpaper coverage */
+body.has-wallpaper {
+    background: var(--bg-primary); /* Fallback background */
+}
+
+/* Additional wallpaper fixes for Electron */
+body.has-wallpaper::before {
+    /* Ensure it's behind everything */
+    z-index: -2;
 }
 
 /* Enhanced Setting Groups */
@@ -1639,7 +1669,23 @@ body.has-wallpaper::before {
     .slider-value {
         align-self: center;
     }
+    
+    /* Fix wallpaper for small screens */
+    body.has-wallpaper::before {
+        background-attachment: scroll;
+        min-height: 100vh;
+        height: 100vh;
+        /* Fix for mobile browsers with dynamic viewport */
+        height: 100dvh;
+        min-height: 100dvh;
+    }
+    
+    html, body {
+        height: 100dvh;
+        min-height: 100dvh;
+    }
 }
+
 /* Playlist Video Items */
 .playlist-videos {
     max-height: 400px;
@@ -2577,6 +2623,33 @@ body.has-wallpaper::before {
     font-size: 14px;
 }
 
+/* Update Disabled */
+.update-disabled {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--warning);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+}
+
+.update-disabled svg {
+    width: 48px;
+    height: 48px;
+    color: var(--warning);
+    margin-bottom: 12px;
+}
+
+.update-disabled h3 {
+    color: var(--warning);
+    margin-bottom: 8px;
+}
+
+.update-disabled p {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
 /* Responsive Updates */
 @media (max-width: 768px) {
     .tab-nav {
@@ -2785,4 +2858,35 @@ html {
         box-shadow: none;
         border: 1px solid #ccc;
     }
+}
+/* Fix for very large screens */
+@media (min-width: 1920px) {
+    body.has-wallpaper::before {
+        width: 100vw;
+        height: 100vh;
+        min-width: 100vw;
+        min-height: 100vh;
+    }
+}
+
+/* Enhanced wallpaper display for Electron */
+body.has-wallpaper::before {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
+/* Gradient wallpaper support */
+body.has-wallpaper.gradient-wallpaper::before {
+    background-size: 100% 100%;
+    background-attachment: fixed;
+    width: 100vw;
+    height: 100vh;
+    min-height: 100vh;
+}
+
+/* Ensure no black spaces around wallpaper */
+body.has-wallpaper {
+    overflow-x: hidden;
 }
